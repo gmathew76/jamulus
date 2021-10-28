@@ -70,7 +70,16 @@ void CNetBuf::Init ( const int iNewBlockSize, const int iNewNumBlocks, const boo
             const uint8_t iOldSequenceNumberAtGetPos = iSequenceNumberAtGetPos;
             const int     iOldNumBlocksMemory        = iNumBlocksMemory;
             const int     iOldBlockGetPos            = iBlockGetPos;
+            const int     iOldBlockPutPos            = iBlockPutPos;
+            const EBufState oldEBufState             = eBufState;
             int           iCurBlockPos               = 0;
+
+            int iDeltaPutGetPos = DeltaDistance(iOldBlockPutPos, iOldBlockGetPos);
+            int iOldCount = (eBufState == BS_FULL) ? iOldNumBlocksMemory : iDeltaPutGetPos;
+            int iNewCount = iOldCount;
+
+            printf("Stats fillGets %d, lowBuffers %d, outOfSeqBuffers %d, outOfSeqRangeBuffers %d\n", fillGets, lowBuffers, outOfSeqBuffers, outOfSeqRangeBuffers );
+            printf("Resize oldNumBlocks %d newNumBlocks %d iOldCount = %d, newCount = %d, delta = %d\n", iOldNumBlocksMemory, iNewNumBlocks, iOldCount, iNewCount, iDeltaPutGetPos);
 
             while ( iBlockGetPos < iNumBlocksMemory )
             {
@@ -84,23 +93,114 @@ void CNetBuf::Init ( const int iNewBlockSize, const int iNewNumBlocks, const boo
                 vecvecTempMemory[iCurBlockPos++] = vecvecMemory[iBlockGetPos];
             }
 
+            printf("Copied %d blocks.\n", iCurBlockPos);
+
             // now resize the buffer to the new size
             Resize ( iNewNumBlocks, iNewBlockSize );
 
-            // write back the temporary data in new memory
-            iSequenceNumberAtGetPos = iOldSequenceNumberAtGetPos;
+            //
+            // Copy over the data from the temporary vector back into the new buffer.
+            //
+
             iBlockGetPos            = 0; // per definition
 
-            for ( int iCurPos = 0; iCurPos < std::min ( iNewNumBlocks, iOldNumBlocksMemory ); iCurPos++ )
-            {
-                veciBlockValid[iCurPos] = veciTempBlockValid[iCurPos];
-                vecvecMemory[iCurPos]   = vecvecTempMemory[iCurPos];
+            //
+            // If the new size is smaller than the number of blocks we have, we discard blocks starting
+            // at the get position until we can fit the new buffer.
+            //
+            if (iOldCount <= iNewNumBlocks) {
+                
+                iSequenceNumberAtGetPos = iOldSequenceNumberAtGetPos;
+                iNewCount = iOldCount;
+
+                // copy over everything
+                for ( int iCurPos = 0; iCurPos < iOldCount; iCurPos++ )
+                {
+                    veciBlockValid[iCurPos] = veciTempBlockValid[iCurPos];
+                    vecvecMemory[iCurPos]   = vecvecTempMemory[iCurPos];
+                }                
+                iNewCount = iOldCount;
+                iBlockPutPos = iNewCount;
             }
+            else 
+            {
+                iSequenceNumberAtGetPos = iOldSequenceNumberAtGetPos + (iOldCount - iNewNumBlocks);
+                iNewCount = iNewNumBlocks;
+
+                // copy over everything from the tail of the buffer.
+                int srcIdx, dstIdx;
+                for ( dstIdx = 0, srcIdx = (iOldCount - iNewCount); dstIdx < iNewCount; srcIdx++, dstIdx++)
+                {
+                    veciBlockValid[dstIdx] = veciTempBlockValid[srcIdx];
+                    vecvecMemory[dstIdx]   = vecvecTempMemory[srcIdx];
+                }
+                iBlockPutPos = 0; // a full buffer.
+            }
+
+            //
+            // Update the buffer state.
+            //
+
+            switch (oldEBufState)
+            {
+                case BS_EMPTY:
+                    break;
+
+                case BS_FILLING:
+
+                    if (iNewCount >= iNewNumBlocks)
+                    {
+                       eBufState = BS_FULL; 
+                    }
+                    else if (iNewCount > iNumBlocksMemory / 2)
+                    {
+                       eBufState = BS_OK; 
+                    }
+                    else if (iNewCount == 0)
+                    {
+                        eBufState = BS_EMPTY;
+                    }
+                    break;
+
+                case BS_OK:
+
+                    if (iNewCount >= iNumBlocksMemory)
+                    {
+                       eBufState = BS_FULL; 
+                    }
+                    else if (iNewCount <= iNumBlocksMemory / 2)
+                    {
+                       eBufState = BS_FILLING; 
+                    }
+                    else if (iNewCount == 0)
+                    {
+                        eBufState = BS_EMPTY;
+                    }
+                    break;
+
+                case BS_FULL:
+
+                    if (iNewCount == 0)
+                    {
+                        eBufState = BS_EMPTY;
+                    }
+                    else if (iNewCount <= iNumBlocksMemory / 2)
+                    {
+                       eBufState = BS_FILLING; 
+                    }
+                    else if (iNewCount < iNumBlocksMemory)
+                    {
+                       eBufState = BS_OK;
+                    }
+                    break;
+            }
+
         }
     }
     else
     {
         Resize ( iNewNumBlocks, iNewBlockSize );
+        eBufState = BS_EMPTY;
     }
 
     // set initialized flag
@@ -148,8 +248,9 @@ bool CNetBuf::Put ( const CVector<uint8_t>& vecbyData, int iInSize )
         // copy new data in internal buffer
         for ( int iBlock = 0; iBlock < iNumBlocks; iBlock++ )
         {
-            // calculate the block offset once per loop instead of repeated multiplying
-            const int iBlockOffset = iBlock * ( iBlockSize + iNumBytesSeqNum );
+
+            int iNewBlockPutPos = iBlockPutPos;
+            bool bUpdatePutPos = true;
 
             // extract sequence number of current received block (per definition
             // the sequence number is appended after the coded audio data)
@@ -171,36 +272,21 @@ bool CNetBuf::Put ( const CVector<uint8_t>& vecbyData, int iInSize )
             // further than this we cannot detect it. But it does not matter since such a packet is
             // more than 100 ms delayed so we have a bad network situation anyway. Therefore we
             // assume that the sequence number difference between the received and local counter is
-            // correct. The idea of the following code is that we always move our "buffer window" so
-            // that the received packet fits into the buffer. By doing this we are robust against
-            // sample rate offsets between client/server or buffer glitches in the audio driver since
-            // we adjust the window. The downside is that we never throw away single packets which arrive
-            // too late so we throw away valid packets when we move the "buffer window" to the delayed
-            // packet and then back to the correct place when the next normal packet is received. But
-            // tests showed that the new buffer strategy does not perform worse than the old jitter
-            // buffer which did not use any sequence number at all.
+            // correct. 
+            //
+
+            //
+            // If the received packet is too late (i.e. our get position is already ahead), we don't have
+            // any use for the data. Drop it and move to the next block.
+            //
             if ( iSeqNumDiff < 0 )
             {
-                // the received packet comes too late so we shift the "buffer window" to the past
-                // until the received packet is the very first packet in the buffer
-                for ( int i = iSeqNumDiff; i < 0; i++ )
-                {
-                    // insert an invalid block at the shifted position
-                    veciBlockValid[iBlockGetPos] = 0; // invalidate
-
-                    // we decrease the local sequence number and get position and take care of wrap
-                    iSequenceNumberAtGetPos--;
-                    iBlockGetPos--;
-
-                    if ( iBlockGetPos < 0 )
-                    {
-                        iBlockGetPos += iNumBlocksMemory;
-                    }
-                }
-
-                // insert the new packet at the beginning of the buffer since it was delayed
-                iBlockPutPos = iBlockGetPos;
+                continue;
             }
+            //
+            // else if the received packet comes too early so we move the "buffer window" in the
+            // future until the received packet is the last packet in the buffer
+            //
             else if ( iSeqNumDiff >= iNumBlocksMemory )
             {
                 // the received packet comes too early so we move the "buffer window" in the
@@ -220,24 +306,32 @@ bool CNetBuf::Put ( const CVector<uint8_t>& vecbyData, int iInSize )
                     }
                 }
 
+                outOfSeqRangeBuffers++;
+
                 // insert the new packet at the end of the buffer since it is too early (since
                 // we add an offset to the get position, we have to take care of wrapping)
-                iBlockPutPos = iBlockGetPos + iNumBlocksMemory - 1;
+                iNewBlockPutPos = iBlockGetPos + iNumBlocksMemory - 1;
 
-                if ( iBlockPutPos >= iNumBlocksMemory )
+                if ( iNewBlockPutPos >= iNumBlocksMemory )
                 {
-                    iBlockPutPos -= iNumBlocksMemory;
+                    iNewBlockPutPos -= iNumBlocksMemory;
                 }
             }
             else
             {
                 // this is the regular case: the received packet fits into the buffer so
                 // we will write it at the correct position based on the sequence number
-                iBlockPutPos = iBlockGetPos + iSeqNumDiff;
+                iNewBlockPutPos = iBlockGetPos + iSeqNumDiff;
 
-                if ( iBlockPutPos >= iNumBlocksMemory )
+                if ( iNewBlockPutPos >= iNumBlocksMemory )
                 {
-                    iBlockPutPos -= iNumBlocksMemory;
+                    iNewBlockPutPos -= iNumBlocksMemory;
+                }
+
+                if (DeltaDistance(iNewBlockPutPos, iBlockGetPos) < DeltaDistance(iBlockPutPos, iBlockGetPos))
+                {
+                    outOfSeqBuffers++;
+                    bUpdatePutPos = false;
                 }
             }
 
@@ -245,12 +339,75 @@ bool CNetBuf::Put ( const CVector<uint8_t>& vecbyData, int iInSize )
             if ( !bIsSimulation )
             {
                 // copy one block of data in buffer
-                std::copy ( vecbyData.begin() + iBlockOffset, vecbyData.begin() + iBlockOffset + iBlockSize, vecvecMemory[iBlockPutPos].begin() );
+                std::copy ( vecbyData.begin() + iBlock * ( iBlockSize + iNumBytesSeqNum ),
+                            vecbyData.begin() + iBlock * ( iBlockSize + iNumBytesSeqNum ) + iBlockSize,
+                            vecvecMemory[iNewBlockPutPos].begin() );
             }
 
             // valid packet added, set flag
-            veciBlockValid[iBlockPutPos] = 1;
-        }
+            veciBlockValid[iNewBlockPutPos] = 1;
+
+            //
+            // Update our put position if we received a packet at the end of the buffer.
+            //
+
+            if (bUpdatePutPos)
+            {
+                iBlockPutPos = iNewBlockPutPos + 1;
+                if ( iBlockPutPos >= iNumBlocksMemory )
+                {
+                    iBlockPutPos -= iNumBlocksMemory;
+                }
+            }
+
+            //
+            // Update the buffer state.
+            //
+
+            int iPutGetDelta = DeltaDistance(iBlockPutPos, iBlockGetPos);
+
+            switch (eBufState)
+            {
+                case BS_EMPTY:
+
+                    if (iPutGetDelta == 0)
+                    {
+                        eBufState = BS_FULL;
+                    }
+                    else if (iPutGetDelta <= iNumBlocksMemory/2)
+                    {
+                        eBufState = BS_FILLING;
+                    }
+                    else 
+                    {
+                        eBufState = BS_OK;
+                    }
+                    break;
+
+                case BS_FILLING:
+
+                    if (iPutGetDelta == 0)
+                    {
+                        eBufState = BS_FULL;
+                    }
+                    else if (iPutGetDelta > iNumBlocksMemory/2)
+                    {
+                        eBufState = BS_OK;
+                    }
+                    break;
+
+                case BS_OK:
+                    if (iPutGetDelta == 0)
+                    {
+                        eBufState = BS_FULL;
+                    }
+                    break;
+
+                case BS_FULL:
+                    break;
+            }
+
+        } // for
     }
     else
     {
@@ -286,15 +443,51 @@ bool CNetBuf::Put ( const CVector<uint8_t>& vecbyData, int iInSize )
             }
         }
 
-        // set buffer state flag
-        if ( iBlockPutPos == iBlockGetPos )
+        // set buffer state
+
+        const int iDeltaPutGetPos = DeltaDistance(iBlockPutPos, iBlockGetPos);
+
+        switch (eBufState)
         {
-            eBufState = BS_FULL;
+            case BS_EMPTY:
+
+                if (iDeltaPutGetPos == 0)
+                {
+                    eBufState = BS_FULL;
+                }
+                else if (iDeltaPutGetPos <= iNumBlocksMemory/2)
+                {
+                    eBufState = BS_FILLING;
+                }
+                else
+                {
+                    eBufState = BS_OK;
+                }
+                break;
+
+            case BS_FILLING:
+
+                if (iDeltaPutGetPos == 0)
+                {
+                    eBufState = BS_FULL;
+                }
+                else if (iDeltaPutGetPos > iNumBlocksMemory/2)
+                {
+                    eBufState = BS_OK;
+                }
+                break;
+
+            case BS_OK:
+
+                if (iDeltaPutGetPos == 0)
+                {
+                    eBufState = BS_FULL;
+                }
+
+            case BS_FULL:
+                break;
         }
-        else
-        {
-            eBufState = BS_OK;
-        }
+
     }
 
     return true;
@@ -307,6 +500,11 @@ bool CNetBuf::Get ( CVector<uint8_t>& vecbyData, const int iOutSize )
     // check requested output size and available buffer data
     if ( ( iOutSize == 0 ) || ( iOutSize != iBlockSize ) || ( GetAvailData() < iOutSize ) )
     {
+        return false;
+    }
+
+    if ((eBufState == BS_FILLING) || (eBufState == BS_EMPTY)) {
+        fillGets++;
         return false;
     }
 
@@ -337,13 +535,44 @@ bool CNetBuf::Get ( CVector<uint8_t>& vecbyData, const int iOutSize )
         iBlockGetPos = 0;
     }
 
+    int delta = DeltaDistance(iBlockPutPos,iBlockGetPos);
+
+    if (delta <= 1) {
+        lowBuffers++;
+    }
+
     // set buffer state flag
+    switch(eBufState)
+    {
+        case BS_FULL:
+
+            if (delta == 0)
+            {
+                eBufState = BS_EMPTY;
+            }
+            else{
+                eBufState = BS_OK;
+            }
+            break;
+
+        case BS_OK:
+        case BS_FILLING:
+
+            if ( delta == 0 )
+            {
+                eBufState = BS_EMPTY;
+            }
+            break;
+
+        default:
+            break;    
+    }
+
     if ( iBlockPutPos == iBlockGetPos )
     {
         eBufState = BS_EMPTY;
     }
-    else
-    {
+    else {
         eBufState = BS_OK;
     }
 
@@ -352,52 +581,32 @@ bool CNetBuf::Get ( CVector<uint8_t>& vecbyData, const int iOutSize )
 
 int CNetBuf::GetAvailSpace() const
 {
-    // calculate available space in buffer
-    int iAvBlocks = iBlockGetPos - iBlockPutPos;
-
-    // check for special case and wrap around
-    if ( iAvBlocks < 0 )
-    {
-        iAvBlocks += iNumBlocksMemory; // wrap around
-    }
-    else
-    {
-        if ( ( iAvBlocks == 0 ) && ( eBufState == BS_EMPTY ) )
-        {
-            iAvBlocks = iNumBlocksMemory;
-        }
-    }
-
-    return iAvBlocks * iBlockSize;
+    return iNumBlocksMemory * iBlockSize - GetAvailData();
 }
 
 int CNetBuf::GetAvailData() const
 {
-    // in case of using sequence numbers, we always return data from the
-    // buffer per definition
-    int iAvBlocks = iNumBlocksMemory;
+    int iAvBlocks = DeltaDistance(iBlockPutPos, iBlockGetPos);
 
-    if ( !bUseSequenceNumber )
+    if ( ( iAvBlocks == 0 ) && ( eBufState == BS_FULL ) )
     {
-        // calculate available data in buffer
-        iAvBlocks = iBlockPutPos - iBlockGetPos;
-
-        // check for special case and wrap around
-        if ( iAvBlocks < 0 )
-        {
-            iAvBlocks += iNumBlocksMemory; // wrap around
-        }
-        else
-        {
-            if ( ( iAvBlocks == 0 ) && ( eBufState == BS_FULL ) )
-            {
-                iAvBlocks = iNumBlocksMemory;
-            }
-        }
+        iAvBlocks = iNumBlocksMemory;
     }
 
     return iAvBlocks * iBlockSize;
 }
+
+int CNetBuf::DeltaDistance(int putPos, int getPos) const
+{
+    if (putPos >= getPos)
+    {
+        return putPos - getPos;
+    }
+    else
+    {
+        return iNumBlocksMemory - getPos + putPos;
+    }
+}    
 
 /* Network buffer with statistic calculations implementation ******************/
 CNetBufWithStats::CNetBufWithStats() :
@@ -674,4 +883,621 @@ void CNetBufWithStats::UpdateAutoSetting()
             }
         }
     }
+}
+
+
+bool CNetBuf::TestImpl(void)
+{
+    CVector<uint8_t> testData;
+    CVector<uint8_t>  outData;
+
+    testData.Init(65);
+    outData.Init(64);
+
+    Init ( 64, 5, true, false );
+
+    if (eBufState != BS_EMPTY) {
+        printf("x. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 0) {
+        printf("x. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("x. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 0) {
+        printf("x. Unexpected deltaDistance %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }        
+
+    testData[0] = 0;
+    testData[64] = 0;
+    if (!Put ( testData, 65)) {
+        printf("Error put[0]\n");
+        return false;
+    }
+
+    if (eBufState != BS_FILLING) {
+        printf("0. Unexpected State %d", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 1) {
+        printf("0. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("0. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 1) {
+        printf("0. Unexpected deltaDistance %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }        
+
+   if (Get ( outData, 64)) {
+       printf("Unexpected get[0_0]\n");
+       return false;
+   }
+
+    testData[0] = 1;
+    testData[64] = 1;
+    if (!Put ( testData, 65)) {
+        printf("Error put[1]\n");
+        return false;
+    }
+
+    if (eBufState != BS_FILLING) {
+        printf("1. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 2) {
+        printf("1. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("1. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 2) {
+        printf("1. Unexpected deltaDistance %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }    
+
+   if (Get ( outData, 64)) {
+       printf("Unexpected success get[0_1]\n");
+       return false;
+   }
+
+    testData[0] = 2;
+    testData[64] = 2;
+    if (!Put ( testData, 65)) {
+        printf("Error put[2]\n");
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("2. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 3) {
+        printf("2. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("2. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 3) {
+        printf("2. Unexpected deltaDistance %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+   if (!Get ( outData, 64)) {
+        printf("Unexpected get error get[0]\n");
+        return false;
+   }
+   if (outData[0] != 0)
+   {
+        printf("Unexpected data returned. get[0]\n");
+        return false;
+   }
+
+    if (eBufState != BS_OK) {
+        printf("2_0. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 3) {
+       printf("2_0. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+       return false;
+    }
+    if (iBlockGetPos != 1) {
+        printf("2_0. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 2) {
+        printf("2_0. Unexpected deltaDistance %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+    testData[0] = 3;
+    testData[64] = 3;
+    if (!Put ( testData, 65)) {
+        printf("Error put[3]\n");
+        return false;
+    }
+    testData[0] = 4;
+    testData[64] = 4;
+    if (!Put ( testData, 65)) {
+        printf("Error put[4]\n");
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("4. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 0) {
+        printf("4. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 1) {
+        printf("4. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 4) {
+        printf("5. Unexpected deltaDistance %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+    testData[0] = 5;
+    testData[64] = 5;
+
+    if (!Put ( testData, 65)) {
+        printf("5. Unexpected error put[5]\n");
+        return false;
+    }
+
+    if (eBufState != BS_FULL) {
+        printf("5. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (iBlockPutPos != 1) {
+        printf("5. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 1) {
+        printf("5. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 0) {
+        printf("5. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+   if (!Get ( outData, 64)) {
+        printf("Unexpected get error get[1]\n");
+        return false;
+   }
+
+    if (iBlockPutPos != 1) {
+        printf("5_1. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 2) {
+        printf("5_1. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("5_1. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 4) {
+        printf("5_1. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }    
+
+   if (outData[0] != 1)
+   {
+        printf("Unexpected data returned. get[1]\n");
+        return false;
+   }
+
+   if (!Get ( outData, 64)) {
+        printf("Unexpected get error get[2]\n");
+        return false;
+   }
+
+    if (iBlockPutPos != 1) {
+        printf("5_2. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 3) {
+        printf("5_2. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("5_2. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 3) {
+        printf("5_2. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }    
+
+   if (outData[0] != 2)
+   {
+        printf("Unexpected data returned. get[2]\n");
+        return false;
+   }
+
+    // resize the buffer to 10.
+    Init ( 64, 10, true, true );
+
+   if (iBlockPutPos != 3) {
+        printf("5R. Unexpected iBlockPutPos after resize %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("5R. Unexpected iBlockGetPos after resize  %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_FILLING) {
+        printf("5R. Unexpected State after resize  %d\n", eBufState);
+        return false;
+    }
+
+    testData[0] = 8;
+    testData[64] = 8;
+
+    if (!Put ( testData, 65)) {
+        printf("8. Unexpected error put[8]\n");
+        return false;
+    }
+
+    if (iBlockPutPos != 6) {
+        printf("8. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("8. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 6) {
+        printf("8. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+    if (eBufState != BS_OK) {
+        printf("8. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    testData[0] = 9;
+    testData[64] = 9;
+
+    if (!Put ( testData, 65)) {
+        printf("9. Unexpected error put[9]\n");
+        return false;
+    }
+
+    if (iBlockPutPos != 7) {
+        printf("9. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("9. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 7) {
+        printf("9. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+    if (eBufState != BS_OK) {
+        printf("9. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    testData[0] = 7;
+    testData[64] = 7;
+
+    if (!Put ( testData, 65)) {
+        printf("7. Unexpected error put[7]\n");
+        return false;
+    }
+
+   // 0  1  2  3  4  5  6  7  8  9 
+   // 3, 4, 5, ?, 7, 8, 9, x, x, x
+   // ^                    ^
+
+    if (iBlockPutPos != 7) {
+        printf("7. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("7. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 7) {
+        printf("7. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+    if (eBufState != BS_OK) {
+        printf("7. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+   if (!Get ( outData, 64)) {
+        printf("Unexpected get error get[3]\n");
+        return false;
+   }
+
+    if (iBlockPutPos != 7) {
+        printf("8_1. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 1) {
+        printf("8_1. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("8_1. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 6) {
+        printf("8_1. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }
+
+   if (outData[0] != 3)
+   {
+        printf("Unexpected data returned. get[3]\n");
+        return false;
+   }        
+
+   // 0  1  2  3  4  5  6  7  8  9 
+   // x, 4, 5, ?, 7, 8, 9, x, x, x
+   //    ^                 
+   //                      ^
+
+    // resize the buffer to 4.
+    Init ( 64, 4, true, true );
+
+   // 0  1  2  3
+   // ?, 7, 8, 9
+   // ^        
+   // ^
+
+    if (iBlockPutPos != 0) {
+        printf("9R. Unexpected iBlockPutPos after resize %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("9R. Unexpected iBlockGetPos after resize  %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_FULL) {
+        printf("9R. Unexpected State after resize  %d\n", eBufState);
+        return false;
+    }
+
+   if (Get ( outData, 64)) {
+        printf("Unexpected get success get[6]. Got %d\n", outData[0]);
+        return false;
+   }
+
+   // 0  1  2  3
+   // x, 7, 8, 9
+   //    ^        
+   // ^
+
+    if (iBlockPutPos != 0) {
+        printf("9_x. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 1) {
+        printf("9_x. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("9_x. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 3) {
+        printf("9_x. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }    
+
+   if (!Get ( outData, 64)) {
+        printf("Unexpected get error get[7].\n");
+        return false;
+   }
+
+   // 0  1  2  3
+   // x, x, 8, 9
+   //       ^        
+   // ^
+
+    if (iBlockPutPos != 0) {
+        printf("9_7. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 2) {
+        printf("9_7. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("9_7. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 2) {
+        printf("9_7. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    }    
+
+   if (outData[0] != 7)
+   {
+        printf("Unexpected data returned. get[7]\n");
+        return false;
+   }        
+
+   testData[0] = 17;
+   testData[64] = 17;
+
+    if (!Put ( testData, 65)) {
+        printf("17. Unexpected error put[7]\n");
+        return false;
+    }
+
+   // 0  1  2  3
+   // ?, ?, ?, 17
+   // ^        
+   // ^
+
+    if (iBlockPutPos != 0) {
+        printf("17_x. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("17_x. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_FULL) {
+        printf("17_x. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 0) {
+        printf("17_x. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    } 
+
+   testData[0] = 18;
+   testData[64] = 18;
+
+    if (!Put ( testData, 65)) {
+        printf("17. Unexpected error put[7]\n");
+        return false;
+    }
+
+   // 0   1   2   3
+   // 18, ?,  ?,  17
+   //     ^        
+   //     ^
+
+    if (iBlockPutPos != 1) {
+        printf("18_x. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 1) {
+        printf("18_x. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_FULL) {
+        printf("18_x. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (DeltaDistance(iBlockPutPos, iBlockGetPos) != 0) {
+        printf("18_x. Unexpected deltaDistances %d\n", DeltaDistance(iBlockPutPos, iBlockGetPos));
+    } 
+
+  if (Get ( outData, 64)) {
+        printf("Unexpected get success get[15]. Got %d\n", outData[0]);
+        return false;
+   }
+
+   // 0   1   2   3
+   // 18, x,  ?,  17
+   //         ^        
+   //     ^
+
+    if (iBlockPutPos != 1) {
+        printf("18_15. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 2) {
+        printf("18_15. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("18_15. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+  if (Get ( outData, 64)) {
+        printf("Unexpected get success get[16]. Got %d\n", outData[0]);
+        return false;
+   }
+
+   // 0   1   2   3
+   // 18, x,  x,  17
+   //             ^        
+   //     ^
+
+    if (iBlockPutPos != 1) {
+        printf("18_16. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 3) {
+        printf("18_16. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("18_16. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+    if (!Get ( outData, 64)) {
+        printf("Unexpected get error get[17].\n");
+        return false;
+    }
+
+   // 0   1   2   3
+   // 18, x,  x,  x
+   // ^        
+   //     ^
+
+    if (iBlockPutPos != 1) {
+        printf("18_17. Unexpected iBlockPutPos %d\n", iBlockPutPos);
+        return false;
+    }
+    if (iBlockGetPos != 0) {
+        printf("18_17. Unexpected iBlockGetPos %d\n", iBlockGetPos);
+        return false;
+    }
+
+    if (eBufState != BS_OK) {
+        printf("18_17. Unexpected State %d\n", eBufState);
+        return false;
+    }
+
+   if (outData[0] != 17)
+   {
+        printf("Unexpected data returned. get[17]\n");
+        return false;
+   } 
+
+    return true;
 }

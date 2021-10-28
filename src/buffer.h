@@ -233,7 +233,8 @@ protected:
 class CNetBuf
 {
 public:
-    CNetBuf ( const bool bNIsSim = false ) : iSequenceNumberAtGetPos ( 0 ), bIsSimulation ( bNIsSim ), bIsInitialized ( false ) {}
+    CNetBuf ( const bool bNIsSim = false ) : iSequenceNumberAtGetPos ( 0 ), bIsSimulation ( bNIsSim ), bIsInitialized ( false ), 
+                                             fillGets(0), lowBuffers(0), outOfSeqBuffers(0), outOfSeqRangeBuffers(0) {}
 
     void Init ( const int iNewBlockSize, const int iNewNumBlocks, const bool bNUseSequenceNumber, const bool bPreserve = false );
 
@@ -242,29 +243,51 @@ public:
     virtual bool Put ( const CVector<uint8_t>& vecbyData, int iInSize );
     virtual bool Get ( CVector<uint8_t>& vecbyData, const int iOutSize );
 
+    bool TestImpl(void);
+    
 protected:
     enum EBufState
     {
         BS_OK,
         BS_FULL,
-        BS_EMPTY
+        BS_EMPTY, 
+        BS_FILLING
     };
 
     int  GetAvailSpace() const;
     int  GetAvailData() const;
     void Resize ( const int iNewNumBlocks, const int iNewBlockSize );
+    int DeltaDistance(int putPos, int getPos) const;
 
     CVector<CVector<uint8_t>> vecvecMemory;
     CVector<int>              veciBlockValid;
     int                       iNumBlocksMemory;
+    
+    //
+    // zero based index at which we get the next buffer. (0..iNumBlocksMemory)
+    //
     int                       iBlockGetPos;
+    
+    //
+    // when sequence numbers are not enabled : 
+    //    zero based index of the location where the next block is put. (0..iNumBlocksMemory)
+    // when seuquence numbers are active:
+    //    zero based index of the location immediately following the the the block with 
+    //    the "newest" sequence number. (0..iNumbBlocksMemory)
     int                       iBlockPutPos;
+
     int                       iBlockSize;
     uint8_t                   iSequenceNumberAtGetPos; // uint8_t so that it wraps automatically
     EBufState                 eBufState;
     bool                      bUseSequenceNumber;
     bool                      bIsSimulation;
     bool                      bIsInitialized;
+
+    // debugging stats.
+    int fillGets;
+    int lowBuffers;
+    int outOfSeqBuffers;
+    int outOfSeqRangeBuffers;
 
     static constexpr int iNumBytesSeqNum = 1; // per definition 1 byte sequence counter
 };
