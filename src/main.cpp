@@ -138,6 +138,13 @@ int main ( int argc, char** argv )
     }
 #endif
 
+    {
+        CNetBuf testBuffer;
+
+        if (!testBuffer.TestImpl()) {
+            exit(0);
+        }
+    }
     // When adding new options, follow the same order as --help output
 
     // QT docu: argv()[0] is the program name, argv()[1] is the first
