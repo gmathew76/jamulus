@@ -66,7 +66,8 @@ CClient::CClient ( const quint16  iPortNumber,
     bEnableIPv6 ( bNEnableIPv6 ),
     bMuteMeInPersonalMix ( bNMuteMeInPersonalMix ),
     iServerSockBufNumFrames ( DEF_NET_BUF_SIZE_NUM_BL ),
-    pSignalHandler ( CSignalHandler::getSingletonP() )
+    pSignalHandler ( CSignalHandler::getSingletonP() ), 
+    JamController ( nullptr )
 {
     int iOpusError;
 
@@ -132,7 +133,7 @@ CClient::CClient ( const quint16  iPortNumber,
 
     QObject::connect ( &Channel, &CChannel::VersionAndOSReceived, this, &CClient::VersionAndOSReceived );
 
-    QObject::connect ( &Channel, &CChannel::RecorderStateReceived, this, &CClient::RecorderStateReceived );
+    QObject::connect ( &Channel, &CChannel::RecorderStateReceived, this, &CClient::OnRecorderStateReceived );
 
     QObject::connect ( &ConnLessProtocol, &CProtocol::CLMessReadyForSending, this, &CClient::OnSendCLProtMessage );
 
@@ -166,6 +167,8 @@ CClient::CClient ( const quint16  iPortNumber,
     QObject::connect ( &Socket, &CHighPrioSocket::InvalidPacketReceived, this, &CClient::OnInvalidPacketReceived );
 
     QObject::connect ( pSignalHandler, &CSignalHandler::HandledSignal, this, &CClient::OnHandledSignal );
+
+    QObject::connect ( this, &CClient::AudioFrame, &JamController, &recorder::CJamController::AudioFrame );
 
     // start timer so that elapsed time works
     PreciseTime.start();
@@ -252,6 +255,12 @@ void CClient::OnJittBufSizeChanged ( int iNewJitBufSize )
 
 void CClient::OnNewConnection()
 {
+    //
+    // Initialize local recording state so that we can record the input stream locally if 
+    // the server start recording.
+    //
+    JamController.SetRecordingDir ( qEnvironmentVariable("USERPROFILE"), iMonoBlockSizeSam, true );
+
     // a new connection was successfully initiated, send infos and request
     // connected clients list
     Channel.SetRemoteInfo ( ChannelInfo );
@@ -266,8 +275,8 @@ void CClient::OnNewConnection()
     CreateServerJitterBufferMessage();
 
     // clang-format off
-// TODO needed for compatibility to old servers >= 3.4.6 and <= 3.5.12
-Channel.CreateReqChannelLevelListMes();
+    // TODO needed for compatibility to old servers >= 3.4.6 and <= 3.5.12
+    Channel.CreateReqChannelLevelListMes();
     // clang-format on
 }
 
@@ -936,6 +945,12 @@ void CClient::Init()
         }
     }
 
+    printf("Init: iOPUSrameSizeSamples %d, iMonoBlockSizeSam %d\n", iOPUSFrameSizeSamples, iMonoBlockSizeSam);
+    if (Channel.IsConnected())
+    {
+        JamController.SetRecordingDir ( qEnvironmentVariable("USERPROFILE"), iMonoBlockSizeSam, true );
+    }
+    
     // calculate stereo (two channels) buffer size
     iStereoBlockSizeSam = 2 * iMonoBlockSizeSam;
 
@@ -1103,6 +1118,15 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
         }
     }
 
+    if ( JamController.GetRecordingEnabled() )
+    {
+        emit AudioFrame ( 0, // iCurChanID,
+                          ChannelInfo.strName, 
+                          CHostAddress(QHostAddress::LocalHost, 0),
+                          iNumAudioChannels,
+                          vecsStereoSndCrd );
+    }
+
     for ( i = 0; i < iSndCrdFrameSizeFactor; i++ )
     {
         // OPUS encoding
@@ -1182,6 +1206,15 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
     // check if channel is connected and if we do not have the initialization phase
     if ( Channel.IsConnected() && ( !bIsInitializationPhase ) )
     {
+        if ( JamController.GetRecordingEnabled() )
+        {
+            emit AudioFrame ( 1, // iCurChanID,
+                              "Mix",
+                              CHostAddress(QHostAddress::LocalHost, 0),
+                              iNumAudioChannels,
+                              vecsStereoSndCrd );
+        }
+
         if ( eAudioChannelConf == CC_MONO )
         {
             // copy mono data in stereo sound card buffer (note that since the input
@@ -1210,11 +1243,10 @@ int CClient::EstimatedOverallDelay ( const int iPingTimeMs )
     const float fSystemBlockDurationMs = static_cast<float> ( iOPUSFrameSizeSamples ) / SYSTEM_SAMPLE_RATE_HZ * 1000;
 
     // If the jitter buffers are set effectively, i.e. they are exactly the
-    // size of the network jitter, then the delay of the buffer is the buffer
-    // length. Since that is usually not the case but the buffers are usually
-    // a bit larger than necessary, we introduce some factor for compensation.
+    // size of the network jitter. Then the delay of the buffer is half the 
+    // buffer length.
     // Consider the jitter buffer on the client and on the server side, too.
-    const float fTotalJitterBufferDelayMs = fSystemBlockDurationMs * ( GetSockBufNumFrames() + GetServerSockBufNumFrames() ) * 0.7f;
+    const float fTotalJitterBufferDelayMs = fSystemBlockDurationMs * ( GetSockBufNumFrames() + GetServerSockBufNumFrames() ) * 0.5f;
 
     // consider delay introduced by the sound card conversion buffer by using
     // "GetSndCrdConvBufAdditionalDelayMonoBlSize()"
@@ -1251,4 +1283,19 @@ int CClient::EstimatedOverallDelay ( const int iPingTimeMs )
         fDelayToFillNetworkPacketsMs + fTotalJitterBufferDelayMs + fTotalSoundCardDelayMs + fAdditionalAudioCodecDelayMs;
 
     return MathUtils::round ( fTotalBufferDelayMs + iPingTimeMs );
+}
+
+void CClient::OnRecorderStateReceived ( ERecorderState eRecorderState )
+{
+    emit RecorderStateReceived( eRecorderState );
+
+    if (eRecorderState == RS_RECORDING) {
+        printf("Start recording.\n");
+        JamController.SetEnableRecording(true, IsRunning());
+    }
+    else {
+        printf("Stop recording.\n");
+        JamController.SetEnableRecording(false, IsRunning());
+    }
+
 }

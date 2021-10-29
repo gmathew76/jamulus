@@ -40,6 +40,7 @@
 #include "util.h"
 #include "buffer.h"
 #include "signalhandler.h"
+#include "recorder/jamcontroller.h"
 #ifdef LLCON_VST_PLUGIN
 #    include "vstsound.h"
 #else
@@ -360,6 +361,8 @@ protected:
 
     CSignalHandler* pSignalHandler;
 
+    recorder::CJamController JamController;    
+
 protected slots:
     void OnHandledSignal ( int sigNum );
     void OnSendProtMessage ( CVector<uint8_t> vecMessage );
@@ -375,6 +378,7 @@ protected slots:
     {
         if ( InetAddr == Channel.GetAddress() )
         {
+            JamController.SetEnableRecording(false, IsRunning());            
             emit Disconnected();
         }
     }
@@ -390,6 +394,7 @@ protected slots:
     void OnControllerInFaderIsSolo ( int iChannelIdx, bool bIsSolo );
     void OnControllerInFaderIsMute ( int iChannelIdx, bool bIsMute );
     void OnClientIDReceived ( int iChanID );
+    void OnRecorderStateReceived( ERecorderState eRecorderState );
 
 signals:
     void ConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
@@ -419,4 +424,11 @@ signals:
     void ControllerInPanValue ( int iChannelIdx, int iValue );
     void ControllerInFaderIsSolo ( int iChannelIdx, bool bIsSolo );
     void ControllerInFaderIsMute ( int iChannelIdx, bool bIsMute );
+
+    void AudioFrame ( const int              iChID,
+                      const QString          stChName,
+                      const CHostAddress     RecHostAddr,
+                      const int              iNumAudChan,
+                      const CVector<int16_t> vecsData );
+
 };

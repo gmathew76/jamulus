@@ -35,7 +35,7 @@ class CJamController : public QObject
 {
     Q_OBJECT
 public:
-    explicit CJamController ( CServer* pNServer );
+    explicit CJamController ( CServer* pNServer = nullptr );
 
     bool           GetRecorderInitialised() { return bRecorderInitialised; }
     QString        GetRecorderErrMsg() { return strRecorderErrMsg; }
