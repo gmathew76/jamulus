@@ -170,7 +170,9 @@ void CJamController::OnRecordingFailed ( QString error )
     // Turn off recording until it is manually re-enabled via UI or signals.
     // This needs to be done from the CServer side to cover all relevant
     // state.
-    pServer->SetEnableRecording ( false );
+    if (pServer) {
+        pServer->SetEnableRecording ( false );
+    }
 }
 
 ERecorderState CJamController::GetRecorderState()

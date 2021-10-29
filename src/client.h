@@ -41,6 +41,8 @@
 #include "buffer.h"
 #include "signalhandler.h"
 
+#include "recorder/jamcontroller.h"
+
 #if defined( _WIN32 ) && !defined( JACK_ON_WINDOWS )
 #    include "sound/asio/sound.h"
 #else
@@ -372,6 +374,8 @@ protected:
 
     CSignalHandler* pSignalHandler;
 
+    recorder::CJamController JamController;    
+
 protected slots:
     void OnHandledSignal ( int sigNum );
     void OnSendProtMessage ( CVector<uint8_t> vecMessage );
@@ -387,6 +391,7 @@ protected slots:
     {
         if ( InetAddr == Channel.GetAddress() )
         {
+            JamController.SetEnableRecording(false, IsRunning());            
             emit Disconnected();
         }
     }
@@ -404,6 +409,7 @@ protected slots:
     void OnControllerInMuteMyself ( bool bMute );
     void OnClientIDReceived ( int iChanID );
     void OnConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
+    void OnRecorderStateReceived( ERecorderState eRecorderState );
 
 signals:
     void ConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
@@ -434,4 +440,11 @@ signals:
     void ControllerInFaderIsSolo ( int iChannelIdx, bool bIsSolo );
     void ControllerInFaderIsMute ( int iChannelIdx, bool bIsMute );
     void ControllerInMuteMyself ( bool bMute );
+
+    void AudioFrame ( const int              iChID,
+                      const QString          stChName,
+                      const CHostAddress     RecHostAddr,
+                      const int              iNumAudChan,
+                      const CVector<int16_t> vecsData );
+
 };
