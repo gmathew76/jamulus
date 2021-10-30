@@ -397,6 +397,7 @@ void CJamRecorder::Start()
     // Ensure any previous cleaning up has been done.
     OnEnd();
 
+    printf("CJamRecorder: Recording session started.\n");
     QString error;
 
     {

@@ -69,7 +69,8 @@ CClient::CClient ( const quint16  iPortNumber,
     bMuteMeInPersonalMix ( bNMuteMeInPersonalMix ),
     iServerSockBufNumFrames ( DEF_NET_BUF_SIZE_NUM_BL ),
     pSignalHandler ( CSignalHandler::getSingletonP() ), 
-    JamController ( nullptr )
+    JamController ( nullptr ), 
+    eLocalRecorderState( RS_NOT_INITIALISED )
 {
     int iOpusError;
 
@@ -880,6 +881,10 @@ void CClient::Start()
 
 void CClient::Stop()
 {
+    // stop local recording
+    eLocalRecorderState = RS_NOT_ENABLED;
+    JamController.SetEnableRecording( false, false );
+    
     // stop audio interface
     Sound.Stop();
 
@@ -1090,6 +1095,7 @@ void CClient::Init()
     if (Channel.IsConnected())
     {
         JamController.SetRecordingDir ( qEnvironmentVariable("USERPROFILE"), iMonoBlockSizeSam, true );
+        eLocalRecorderState = RS_NOT_ENABLED;
     }
     
     // calculate stereo (two channels) buffer size
@@ -1259,9 +1265,9 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
         }
     }
 
-    if ( JamController.GetRecordingEnabled() )
+    if ( eLocalRecorderState == RS_RECORDING )
     {
-        emit AudioFrame ( 0, // iCurChanID,
+        emit AudioFrame ( 0, // Local recording channel 0 is input from microphone.
                           ChannelInfo.strName, 
                           CHostAddress(QHostAddress::LocalHost, 0),
                           iNumAudioChannels,
@@ -1347,9 +1353,9 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
     // check if channel is connected and if we do not have the initialization phase
     if ( Channel.IsConnected() && ( !bIsInitializationPhase ) )
     {
-        if ( JamController.GetRecordingEnabled() )
+        if ( eLocalRecorderState == RS_RECORDING )
         {
-            emit AudioFrame ( 1, // iCurChanID,
+            emit AudioFrame ( 1, // Local recording channel 1 is mix received from server.
                               "Mix",
                               CHostAddress(QHostAddress::LocalHost, 0),
                               iNumAudioChannels,
@@ -1428,15 +1434,20 @@ int CClient::EstimatedOverallDelay ( const int iPingTimeMs )
 
 void CClient::OnRecorderStateReceived ( ERecorderState eRecorderState )
 {
+    if (eLocalRecorderState != eRecorderState)
+    {
+        eLocalRecorderState = eRecorderState;
+
+        if (eRecorderState == RS_RECORDING) {
+            printf("Start recording.\n");
+            JamController.SetEnableRecording(true, IsRunning());
+        }
+        else {
+            printf("Stop recording.\n");
+            JamController.SetEnableRecording(false, IsRunning());
+        }
+
+    }
+
     emit RecorderStateReceived( eRecorderState );
-
-    if (eRecorderState == RS_RECORDING) {
-        printf("Start recording.\n");
-        JamController.SetEnableRecording(true, IsRunning());
-    }
-    else {
-        printf("Stop recording.\n");
-        JamController.SetEnableRecording(false, IsRunning());
-    }
-
 }
