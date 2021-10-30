@@ -363,6 +363,7 @@ protected:
 
     recorder::CJamController JamController;    
     ERecorderState eLocalRecorderState;
+    QString strLocalRecordingDir;
 
 protected slots:
     void OnHandledSignal ( int sigNum );
