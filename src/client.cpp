@@ -70,7 +70,8 @@ CClient::CClient ( const quint16  iPortNumber,
     iServerSockBufNumFrames ( DEF_NET_BUF_SIZE_NUM_BL ),
     pSignalHandler ( CSignalHandler::getSingletonP() ), 
     JamController ( nullptr ), 
-    eLocalRecorderState( RS_NOT_INITIALISED )
+    eLocalRecorderState( RS_NOT_INITIALISED ), 
+    strLocalRecordingDir()
 {
     int iOpusError;
 
@@ -177,6 +178,13 @@ CClient::CClient ( const quint16  iPortNumber,
 
     QObject::connect ( this, &CClient::AudioFrame, &JamController, &recorder::CJamController::AudioFrame );
 
+    strLocalRecordingDir = QStandardPaths::writableLocation(QStandardPaths::MusicLocation);
+    if (strLocalRecordingDir.isEmpty()) {
+        strLocalRecordingDir = QDir::homePath();
+    }
+
+    printf("Local recording path %s\n", strLocalRecordingDir.toLatin1().data());
+
     // start timer so that elapsed time works
     PreciseTime.start();
 
@@ -279,7 +287,7 @@ void CClient::OnNewConnection()
     // Initialize local recording state so that we can record the input stream locally if 
     // the server start recording.
     //
-    JamController.SetRecordingDir ( qEnvironmentVariable("USERPROFILE"), iMonoBlockSizeSam, true );
+    JamController.SetRecordingDir ( strLocalRecordingDir, iMonoBlockSizeSam, true );
 
     // a new connection was successfully initiated, send infos and request
     // connected clients list
@@ -1094,7 +1102,7 @@ void CClient::Init()
     printf("Init: iOPUSrameSizeSamples %d, iMonoBlockSizeSam %d\n", iOPUSFrameSizeSamples, iMonoBlockSizeSam);
     if (Channel.IsConnected())
     {
-        JamController.SetRecordingDir ( qEnvironmentVariable("USERPROFILE"), iMonoBlockSizeSam, true );
+        JamController.SetRecordingDir ( strLocalRecordingDir, iMonoBlockSizeSam, true );
         eLocalRecorderState = RS_NOT_ENABLED;
     }
     
