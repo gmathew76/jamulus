@@ -362,6 +362,7 @@ protected:
     CSignalHandler* pSignalHandler;
 
     recorder::CJamController JamController;    
+    ERecorderState eLocalRecorderState;
 
 protected slots:
     void OnHandledSignal ( int sigNum );
@@ -378,7 +379,7 @@ protected slots:
     {
         if ( InetAddr == Channel.GetAddress() )
         {
-            JamController.SetEnableRecording(false, IsRunning());            
+            JamController.SetEnableRecording(false, IsRunning());
             emit Disconnected();
         }
     }
