@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -31,6 +31,7 @@
 #include <QTimer>
 #include <QLocale>
 #include <QtConcurrent>
+#include <QRegularExpression>
 #include "global.h"
 #include "util.h"
 #include "settings.h"
@@ -73,7 +74,7 @@ protected:
     void             UpdateListFilter();
     void             ShowAllMusicians ( const bool bState );
     void             RequestServerList();
-    void             EmitCLServerListPingMes ( const CHostAddress& CurServerAddress );
+    void             EmitCLServerListPingMes ( const CHostAddress& haServerAddress );
     void             UpdateDirectoryServerComboBox();
 
     CClientSettings* pSettings;
@@ -81,7 +82,7 @@ protected:
     QTimer       TimerPing;
     QTimer       TimerReRequestServList;
     QTimer       TimerInitialSort;
-    CHostAddress CentralServerAddress;
+    CHostAddress haDirectoryAddress;
     QString      strSelectedAddress;
     QString      strSelectedServerName;
     bool         bShowCompleteRegList;
@@ -98,7 +99,7 @@ public slots:
     void OnDirectoryServerChanged ( int iTypeIdx );
     void OnFilterTextEdited ( const QString& ) { UpdateListFilter(); }
     void OnExpandAllStateChanged ( int value ) { ShowAllMusicians ( value == Qt::Checked ); }
-    void OnCustomCentralServerAddrChanged();
+    void OnCustomDirectoriesChanged();
     void OnConnectClicked();
     void OnTimerPing();
     void OnTimerReRequestServList();

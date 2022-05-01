@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -39,6 +39,7 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     pSettings ( pNSetP ),
     bConnectDlgWasShown ( false ),
     bMIDICtrlUsed ( !strMIDISetup.isEmpty() ),
+    bDetectFeedback ( false ),
     bEnableIPv6 ( bNEnableIPv6 ),
     eLastRecorderState ( RS_UNDEFINED ), // for SetMixerBoardDeco
     eLastDesign ( GD_ORIGINAL ),         //          "
@@ -69,7 +70,7 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
                            "<br>" +
                            tr ( "For proper usage of the "
                                 "application, you should not hear your singing/instrument through "
-                                "the loudspeaker or your headphone when the software is not connected."
+                                "the loudspeaker or your headphone when the software is not connected. "
                                 "This can be achieved by muting your input audio channel in the "
                                 "Playback mixer (not the Recording mixer!)." ) +
                            TOOLTIP_COM_END_TEXT;
@@ -204,8 +205,10 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     lblDelayVal->setWhatsThis ( strConnStats );
     ledDelay->setWhatsThis ( strConnStats );
     ledDelay->setToolTip ( tr ( "If this LED indicator turns red, "
-                                "you will not have much fun using the " ) +
-                           APP_NAME + tr ( " software." ) + TOOLTIP_COM_END_TEXT );
+                                "you will not have much fun using "
+                                "the %1 software." )
+                               .arg ( APP_NAME ) +
+                           TOOLTIP_COM_END_TEXT );
     lblPingVal->setText ( "---" );
     lblPingUnit->setText ( "" );
     lblDelayVal->setText ( "---" );
@@ -213,6 +216,9 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     // init GUI design
     SetGUIDesign ( pClient->GetGUIDesign() );
+
+    // MeterStyle init
+    SetMeterStyle ( pClient->GetMeterStyle() );
 
     // set the settings pointer to the mixer board (must be done early)
     MainMixerBoard->SetSettingsPointer ( pSettings );
@@ -304,6 +310,12 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     // View menu  --------------------------------------------------------------
     QMenu* pViewMenu = new QMenu ( tr ( "&View" ), this );
 
+    // own fader first option: works from server version 3.5.5 which supports sending client ID back to client
+    QAction* OwnFaderFirstAction =
+        pViewMenu->addAction ( tr ( "O&wn Fader First" ), this, SLOT ( OnOwnFaderFirst() ), QKeySequence ( Qt::CTRL + Qt::Key_W ) );
+
+    pViewMenu->addSeparator();
+
     QAction* NoSortAction =
         pViewMenu->addAction ( tr ( "N&o User Sorting" ), this, SLOT ( OnNoSortChannels() ), QKeySequence ( Qt::CTRL + Qt::Key_O ) );
 
@@ -320,6 +332,9 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     QAction* ByCityAction =
         pViewMenu->addAction ( tr ( "Sort Users by &City" ), this, SLOT ( OnSortChannelsByCity() ), QKeySequence ( Qt::CTRL + Qt::Key_T ) );
+
+    OwnFaderFirstAction->setCheckable ( true );
+    OwnFaderFirstAction->setChecked ( pSettings->bOwnFaderFirst );
 
     // the sorting menu entries shall be checkable and exclusive
     QActionGroup* SortActionGroup = new QActionGroup ( this );
@@ -369,7 +384,7 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     pViewMenu->addSeparator();
 
     // Settings menu  --------------------------------------------------------------
-    QMenu* pSettingsMenu = new QMenu ( tr ( "&Settings" ), this );
+    QMenu* pSettingsMenu = new QMenu ( tr ( "Sett&ings" ), this );
 
     pSettingsMenu->addAction ( tr ( "My &Profile..." ), this, SLOT ( OnOpenUserProfileSettings() ), QKeySequence ( Qt::CTRL + Qt::Key_P ) );
 
@@ -492,6 +507,8 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     QObject::connect ( pClient, &CClient::ControllerInFaderIsMute, this, &CClientDlg::OnControllerInFaderIsMute );
 
+    QObject::connect ( pClient, &CClient::ControllerInMuteMyself, this, &CClientDlg::OnControllerInMuteMyself );
+
     QObject::connect ( pClient, &CClient::CLChannelLevelListReceived, this, &CClientDlg::OnCLChannelLevelListReceived );
 
     QObject::connect ( pClient, &CClient::VersionAndOSReceived, this, &CClientDlg::OnVersionAndOSReceived );
@@ -502,12 +519,11 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     QObject::connect ( &ClientSettingsDlg, &CClientSettingsDlg::GUIDesignChanged, this, &CClientDlg::OnGUIDesignChanged );
 
+    QObject::connect ( &ClientSettingsDlg, &CClientSettingsDlg::MeterStyleChanged, this, &CClientDlg::OnMeterStyleChanged );
+
     QObject::connect ( &ClientSettingsDlg, &CClientSettingsDlg::AudioChannelsChanged, this, &CClientDlg::OnAudioChannelsChanged );
 
-    QObject::connect ( &ClientSettingsDlg,
-                       &CClientSettingsDlg::CustomCentralServerAddrChanged,
-                       &ConnectDlg,
-                       &CConnectDlg::OnCustomCentralServerAddrChanged );
+    QObject::connect ( &ClientSettingsDlg, &CClientSettingsDlg::CustomDirectoriesChanged, &ConnectDlg, &CConnectDlg::OnCustomDirectoriesChanged );
 
     QObject::connect ( &ClientSettingsDlg, &CClientSettingsDlg::NumMixerPanelRowsChanged, this, &CClientDlg::OnNumMixerPanelRowsChanged );
 
@@ -704,13 +720,13 @@ void CClientDlg::OnConnectDlgAccepted()
             strMixerBoardLabel = strSelectedAddress;
 
             // special case: if the address is empty, we substitute the default
-            // directory server address so that a user which just pressed the connect
+            // directory address so that a user who just pressed the connect
             // button without selecting an item in the table or manually entered an
             // address gets a successful connection
             if ( strSelectedAddress.isEmpty() )
             {
                 strSelectedAddress = DEFAULT_SERVER_ADDRESS;
-                strMixerBoardLabel = tr ( "Directory Server" );
+                strMixerBoardLabel = tr ( "%1 Directory" ).arg ( DirectoryTypeToString ( AT_DEFAULT ) );
             }
         }
 
@@ -922,19 +938,16 @@ void CClientDlg::SetMyWindowTitle ( const int iNumClients )
 #if defined( Q_OS_MACX )
     // for MacOS only we show the number of connected clients as a
     // badge label text if more than one user is connected
-    // (only available in Qt5.2)
-#    if QT_VERSION >= QT_VERSION_CHECK( 5, 2, 0 )
     if ( iNumClients > 1 )
     {
         // show the number of connected clients
-        QtMac::setBadgeLabelText ( QString ( "%1" ).arg ( iNumClients ) );
+        SetMacBadgeLabelText ( QString ( "%1" ).arg ( iNumClients ) );
     }
     else
     {
         // clear the text (apply an empty string)
-        QtMac::setBadgeLabelText ( "" );
+        SetMacBadgeLabelText ( "" );
     }
-#    endif
 #endif
 }
 
@@ -1200,7 +1213,7 @@ void CClientDlg::Connect ( const QString& strSelectedAddress, const QString& str
         lbrInputLevelR->setEnabled ( true );
 
         // change connect button text to "disconnect"
-        butConnect->setText ( tr ( "D&isconnect" ) );
+        butConnect->setText ( tr ( "&Disconnect" ) );
 
         // set server name in audio mixer group box title
         MainMixerBoard->SetServerName ( strMixerBoardLabel );
@@ -1349,8 +1362,6 @@ void CClientDlg::SetGUIDesign ( const EGUIDesign eNewDesign )
                                        "font:  bold;" );
 #endif
 
-        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_LED );
-        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_LED );
         ledBuffers->SetType ( CMultiColorLED::MT_LED );
         ledDelay->SetType ( CMultiColorLED::MT_LED );
         break;
@@ -1365,8 +1376,6 @@ void CClientDlg::SetGUIDesign ( const EGUIDesign eNewDesign )
         rbtReverbSelR->setStyleSheet ( "" );
 #endif
 
-        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_BAR );
-        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_BAR );
         ledBuffers->SetType ( CMultiColorLED::MT_INDICATOR );
         ledDelay->SetType ( CMultiColorLED::MT_INDICATOR );
         break;
@@ -1374,6 +1383,41 @@ void CClientDlg::SetGUIDesign ( const EGUIDesign eNewDesign )
 
     // also apply GUI design to child GUI controls
     MainMixerBoard->SetGUIDesign ( eNewDesign );
+}
+
+void CClientDlg::SetMeterStyle ( const EMeterStyle eNewMeterStyle )
+{
+    // apply MeterStyle to current window
+    switch ( eNewMeterStyle )
+    {
+    case MT_LED_STRIPE:
+        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_LED_STRIPE );
+        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_LED_STRIPE );
+        break;
+
+    case MT_LED_ROUND_BIG:
+        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_LED_ROUND_BIG );
+        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_LED_ROUND_BIG );
+        break;
+
+    case MT_BAR_WIDE:
+        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_BAR_WIDE );
+        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_BAR_WIDE );
+        break;
+
+    case MT_BAR_NARROW:
+        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_BAR_WIDE );
+        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_BAR_WIDE );
+        break;
+
+    case MT_LED_ROUND_SMALL:
+        lbrInputLevelL->SetLevelMeterType ( CLevelMeter::MT_LED_ROUND_BIG );
+        lbrInputLevelR->SetLevelMeterType ( CLevelMeter::MT_LED_ROUND_BIG );
+        break;
+    }
+
+    // also apply MeterStyle to child GUI controls
+    MainMixerBoard->SetMeterStyle ( eNewMeterStyle );
 }
 
 void CClientDlg::OnRecorderStateReceived ( const ERecorderState newRecorderState )
@@ -1387,6 +1431,8 @@ void CClientDlg::OnGUIDesignChanged()
     SetGUIDesign ( pClient->GetGUIDesign() );
     SetMixerBoardDeco ( MainMixerBoard->GetRecorderState(), pClient->GetGUIDesign() );
 }
+
+void CClientDlg::OnMeterStyleChanged() { SetMeterStyle ( pClient->GetMeterStyle() ); }
 
 void CClientDlg::SetMixerBoardDeco ( const ERecorderState newRecorderState, const EGUIDesign eNewDesign )
 {

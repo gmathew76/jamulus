@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -29,7 +29,6 @@
 #include <QTimer>
 #include <QLayout>
 #include <QProgressBar>
-#include <QStackedLayout>
 #include "util.h"
 #include "global.h"
 
@@ -45,9 +44,11 @@ class CLevelMeter : public QWidget
 public:
     enum ELevelMeterType
     {
-        MT_LED,
-        MT_BAR,
-        MT_SLIM_BAR
+        MT_BAR_NARROW,
+        MT_BAR_WIDE,
+        MT_LED_STRIPE,
+        MT_LED_ROUND_SMALL,
+        MT_LED_ROUND_BIG
     };
 
     CLevelMeter ( QWidget* parent = nullptr );
@@ -66,7 +67,15 @@ protected:
             RL_BLACK,
             RL_GREEN,
             RL_YELLOW,
-            RL_RED
+            RL_RED,
+            RL_ROUND_SMALL_BLACK,
+            RL_ROUND_SMALL_GREEN,
+            RL_ROUND_SMALL_YELLOW,
+            RL_ROUND_SMALL_RED,
+            RL_ROUND_BIG_BLACK,
+            RL_ROUND_BIG_GREEN,
+            RL_ROUND_BIG_YELLOW,
+            RL_ROUND_BIG_RED
         };
 
         cLED ( QWidget* parent );
@@ -76,10 +85,18 @@ protected:
         QLabel*     GetLabelPointer() { return pLEDLabel; }
 
     protected:
-        QPixmap BitmCubeRoundBlack;
-        QPixmap BitmCubeRoundGreen;
-        QPixmap BitmCubeRoundYellow;
-        QPixmap BitmCubeRoundRed;
+        QPixmap BitmCubeLedBlack;
+        QPixmap BitmCubeLedGreen;
+        QPixmap BitmCubeLedYellow;
+        QPixmap BitmCubeLedRed;
+        QPixmap BitmCubeRoundSmallLedBlack;
+        QPixmap BitmCubeRoundSmallLedGreen;
+        QPixmap BitmCubeRoundSmallLedYellow;
+        QPixmap BitmCubeRoundSmallLedRed;
+        QPixmap BitmCubeRoundBigLedBlack;
+        QPixmap BitmCubeRoundBigLedGreen;
+        QPixmap BitmCubeRoundBigLedYellow;
+        QPixmap BitmCubeRoundBigLedRed;
 
         ELightColor eCurLightColor;
         QLabel*     pLEDLabel;
@@ -89,10 +106,10 @@ protected:
 
     void SetBarMeterStyleAndClipStatus ( const ELevelMeterType eNType, const bool bIsClip );
 
-    QStackedLayout* pStackedLayout;
-    ELevelMeterType eLevelMeterType;
-    CVector<cLED*>  vecpLEDs;
-    QProgressBar*   pBarMeter;
+    CMinimumStackedLayout* pMinStackedLayout;
+    ELevelMeterType        eLevelMeterType;
+    CVector<cLED*>         vecpLEDs;
+    QProgressBar*          pBarMeter;
 
     QTimer TimerClip;
 

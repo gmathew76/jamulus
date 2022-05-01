@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -37,6 +37,7 @@
 #include <QLayout>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QActionGroup>
 #if QT_VERSION >= QT_VERSION_CHECK( 5, 6, 0 )
 #    include <QVersionNumber>
 #endif
@@ -51,10 +52,8 @@
 #include "connectdlg.h"
 #include "analyzerconsole.h"
 #include "ui_clientdlgbase.h"
-#if defined( __APPLE__ ) || defined( __MACOSX )
-#    if QT_VERSION >= QT_VERSION_CHECK( 5, 2, 0 )
-#        include <QtMac>
-#    endif
+#if defined( Q_OS_MACX )
+#    include "mac/badgelabel.h"
 #endif
 
 /* Definitions ****************************************************************/
@@ -86,6 +85,7 @@ public:
 
 protected:
     void SetGUIDesign ( const EGUIDesign eNewDesign );
+    void SetMeterStyle ( const EMeterStyle eNewMeterStyle );
     void SetMyWindowTitle ( const int iNumClients );
     void ShowConnectionSetupDialog();
     void ShowGeneralSettings ( int iTab );
@@ -146,6 +146,8 @@ public slots:
 
     void OnControllerInFaderIsMute ( const int iChannelIdx, const bool bIsMute ) { MainMixerBoard->SetFaderIsMute ( iChannelIdx, bIsMute ); }
 
+    void OnControllerInMuteMyself ( const bool bMute ) { chbLocalMute->setChecked ( bMute ); }
+
     void OnVersionAndOSReceived ( COSUtil::EOpSystemType, QString strVersion );
 
     void OnCLVersionAndOSReceived ( CHostAddress, COSUtil::EOpSystemType, QString strVersion );
@@ -158,6 +160,11 @@ public slots:
     void OnOpenAdvancedSettings();
     void OnOpenChatDialog() { ShowChatWindow(); }
     void OnOpenAnalyzerConsole() { ShowAnalyzerConsole(); }
+    void OnOwnFaderFirst()
+    {
+        pSettings->bOwnFaderFirst = !pSettings->bOwnFaderFirst;
+        MainMixerBoard->SetFaderSorting ( pSettings->eChannelSortType );
+    }
     void OnNoSortChannels() { MainMixerBoard->SetFaderSorting ( ST_NO_SORT ); }
     void OnSortChannelsByName() { MainMixerBoard->SetFaderSorting ( ST_BY_NAME ); }
     void OnSortChannelsByInstrument() { MainMixerBoard->SetFaderSorting ( ST_BY_INSTRUMENT ); }
@@ -226,6 +233,7 @@ public slots:
     void OnConnectDlgAccepted();
     void OnDisconnected() { Disconnect(); }
     void OnGUIDesignChanged();
+    void OnMeterStyleChanged();
     void OnRecorderStateReceived ( ERecorderState eRecorderState );
     void SetMixerBoardDeco ( const ERecorderState newRecorderState, const EGUIDesign eNewDesign );
     void OnAudioChannelsChanged() { UpdateRevSelection(); }

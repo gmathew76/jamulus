@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -23,7 +23,9 @@
 \******************************************************************************/
 
 #include "util.h"
-#include "client.h"
+#ifndef SERVER_ONLY
+#    include "client.h"
+#endif
 
 /* Implementation *************************************************************/
 // Input level meter implementation --------------------------------------------
@@ -408,91 +410,94 @@ CAboutDlg::CAboutDlg ( QWidget* parent ) : CBaseDlg ( parent )
                         "</font></p>" );
 
     // libraries used by this compilation
-    txvLibraries->setText (
-        tr ( "This app uses the following libraries, resources or code snippets:" ) + "<br><p>" + tr ( "Qt cross-platform application framework" ) +
-        ", <i><a href=\"http://www.qt.io\">http://www.qt.io</a></i></p>"
-        "<p>Opus Interactive Audio Codec"
-        ", <i><a href=\"http://www.opus-codec.org\">http://www.opus-codec.org</a></i></p>"
-        "<p>" +
-        tr ( "Audio reverberation code by Perry R. Cook and Gary P. Scavone" ) +
-        ", 1995 - 2004, <i><a href=\"http://ccrma.stanford.edu/software/stk\">"
-        "The Synthesis ToolKit in C++ (STK)</a></i></p>"
-        "<p>" +
-        tr ( "Some pixmaps are from the" ) +
-        " Open Clip Art Library (OCAL), "
-        "<i><a href=\"http://openclipart.org\">http://openclipart.org</a></i></p>"
-        "<p>" +
-        tr ( "Country flag icons by Mark James" ) + ", <i><a href=\"http://www.famfamfam.com\">http://www.famfamfam.com</a></i></p>" );
+    txvLibraries->setText ( tr ( "This app uses the following libraries, resources or code snippets:" ) + "<br><p>" +
+                            tr ( "Qt cross-platform application framework" ) +
+                            ", <i><a href=\"https://www.qt.io\">https://www.qt.io</a></i></p>"
+                            "<p>Opus Interactive Audio Codec"
+                            ", <i><a href=\"https://www.opus-codec.org\">https://www.opus-codec.org</a></i></p>"
+                            "<p>" +
+                            tr ( "Audio reverberation code by Perry R. Cook and Gary P. Scavone" ) +
+                            ", 1995 - 2021, <i><a href=\"https://ccrma.stanford.edu/software/stk\">"
+                            "The Synthesis ToolKit in C++ (STK)</a></i></p>"
+                            "<p>" +
+                            tr ( "Some pixmaps are from the" ) +
+                            " Open Clip Art Library (OCAL), "
+                            "<i><a href=\"https://openclipart.org\">https://openclipart.org</a></i></p>"
+                            "<p>" +
+                            tr ( "Flag icons by Mark James" ) + ", <i><a href=\"http://www.famfamfam.com\">http://www.famfamfam.com</a></i></p>" );
 
     // contributors list
-    txvContributors->setText ( "<p>Volker Fischer (<a href=\"https://github.com/corrados\">corrados</a>)</p>"
-                               "<p>Peter L. Jones (<a href=\"https://github.com/pljones\">pljones</a>)</p>"
-                               "<p>Jonathan Baker-Bates (<a href=\"https://github.com/gilgongo\">gilgongo</a>)</p>"
-                               "<p>ann0see (<a href=\"https://github.com/ann0see\">ann0see</a>)</p>"
-                               "<p>Daniele Masato (<a href=\"https://github.com/doloopuntil\">doloopuntil</a>)</p>"
-                               "<p>Martin Schilde (<a href=\"https://github.com/geheimerEichkater\">geheimerEichkater</a>)</p>"
-                               "<p>Simon Tomlinson (<a href=\"https://github.com/sthenos\">sthenos</a>)</p>"
-                               "<p>Marc jr. Landolt (<a href=\"https://github.com/braindef\">braindef</a>)</p>"
-                               "<p>Olivier Humbert (<a href=\"https://github.com/trebmuh\">trebmuh</a>)</p>"
-                               "<p>Tarmo Johannes (<a href=\"https://github.com/tarmoj\">tarmoj</a>)</p>"
-                               "<p>mirabilos (<a href=\"https://github.com/mirabilos\">mirabilos</a>)</p>"
-                               "<p>Hector Martin (<a href=\"https://github.com/marcan\">marcan</a>)</p>"
-                               "<p>newlaurent62 (<a href=\"https://github.com/newlaurent62\">newlaurent62</a>)</p>"
-                               "<p>AronVietti (<a href=\"https://github.com/AronVietti\">AronVietti</a>)</p>"
-                               "<p>Emlyn Bolton (<a href=\"https://github.com/emlynmac\">emlynmac</a>)</p>"
-                               "<p>Jos van den Oever (<a href=\"https://github.com/vandenoever\">vandenoever</a>)</p>"
-                               "<p>Tormod Volden (<a href=\"https://github.com/tormodvolden\">tormodvolden</a>)</p>"
-                               "<p>Alberstein8 (<a href=\"https://github.com/Alberstein8\">Alberstein8</a>)</p>"
-                               "<p>Gauthier Fleutot Östervall (<a href=\"https://github.com/fleutot\">fleutot</a>)</p>"
-                               "<p>Tony Mountifield (<a href=\"https://github.com/softins\">softins</a>)</p>"
-                               "<p>HPS (<a href=\"https://github.com/hselasky\">hselasky</a>)</p>"
-                               "<p>Stanislas Michalak (<a href=\"https://github.com/stanislas-m\">stanislas-m</a>)</p>"
-                               "<p>JP Cimalando (<a href=\"https://github.com/jpcima\">jpcima</a>)</p>"
-                               "<p>Adam Sampson (<a href=\"https://github.com/atsampson\">atsampson</a>)</p>"
-                               "<p>Jakob Jarmar (<a href=\"https://github.com/jarmar\">jarmar</a>)</p>"
-                               "<p>Stefan Weil (<a href=\"https://github.com/stweil\">stweil</a>)</p>"
-                               "<p>Nils Brederlow (<a href=\"https://github.com/dingodoppelt\">dingodoppelt</a>)</p>"
-                               "<p>Sebastian Krzyszkowiak (<a href=\"https://github.com/dos1\">dos1</a>)</p>"
-                               "<p>Bryan Flamig (<a href=\"https://github.com/bflamig\">bflamig</a>)</p>"
-                               "<p>Kris Raney (<a href=\"https://github.com/kraney\">kraney</a>)</p>"
-                               "<p>dszgit (<a href=\"https://github.com/dszgit\">dszgit</a>)</p>"
-                               "<p>nefarius2001 (<a href=\"https://github.com/nefarius2001\">nefarius2001</a>)</p>"
-                               "<p>jc-Rosichini (<a href=\"https://github.com/jc-Rosichini\">jc-Rosichini</a>)</p>"
-                               "<p>Julian Santander (<a href=\"https://github.com/j-santander\">j-santander</a>)</p>"
-                               "<p>chigkim (<a href=\"https://github.com/chigkim\">chigkim</a>)</p>"
-                               "<p>Bodo (<a href=\"https://github.com/bomm\">bomm</a>)</p>"
-                               "<p>Christian Hoffmann (<a href=\"https://github.com/hoffie\">hoffie</a>)</p>"
-                               "<p>jp8 (<a href=\"https://github.com/jp8\">jp8</a>)</p>"
-                               "<p>James (<a href=\"https://github.com/jdrage\">jdrage</a>)</p>"
-                               "<p>ranfdev (<a href=\"https://github.com/ranfdev\">ranfdev</a>)</p>"
-                               "<p>bspeer (<a href=\"https://github.com/bspeer\">bspeer</a>)</p>"
-                               "<p>Martin Passing (<a href=\"https://github.com/passing\">passing</a>)</p>"
-                               "<p>DonC (<a href=\"https://github.com/dcorson-ticino-com\">dcorson-ticino-com</a>)</p>"
-                               "<p>David Kastrup (<a href=\"https://github.com/dakhubgit\">dakhubgit</a>)</p>"
-                               "<p>Jordan Lum (<a href=\"https://github.com/mulyaj\">mulyaj</a>)</p>"
-                               "<p>Noam Postavsky (<a href=\"https://github.com/npostavs\">npostavs</a>)</p>"
-                               "<p>David Savinkoff (<a href=\"https://github.com/DavidSavinkoff\">DavidSavinkoff</a>)</p>"
-                               "<p>Johannes Brauers (<a href=\"https://github.com/JohannesBrx\">JohannesBrx</a>)</p>"
-                               "<p>Henk De Groot (<a href=\"https://github.com/henkdegroot\">henkdegroot</a>)</p>"
-                               "<p>Ferenc Wágner (<a href=\"https://github.com/wferi\">wferi</a>)</p>"
-                               "<p>Martin Kaistra (<a href=\"https://github.com/djfun\">djfun</a>)</p>"
-                               "<p>Burkhard Volkemer (<a href=\"https://github.com/buv\">buv</a>)</p>"
-                               "<p>Magnus Groß (<a href=\"https://github.com/vimpostor\">vimpostor</a>)</p>"
-                               "<p>Julien Taverna (<a href=\"https://github.com/jujudusud\">jujudusud</a>)</p>"
-                               "<p>Detlef Hennings (<a href=\"https://github.com/DetlefHennings\">DetlefHennings</a>)</p>"
-                               "<p>drummer1154 (<a href=\"https://github.com/drummer1154\">drummer1154</a>)</p>"
-                               "<p>helgeerbe (<a href=\"https://github.com/helgeerbe\">helgeerbe</a>)</p>"
-                               "<p>Hk1020 (<a href=\"https://github.com/Hk1020\">Hk1020</a>)</p>"
-                               "<p>Jeroen van Veldhuizen (<a href=\"https://github.com/jeroenvv\">jeroenvv</a>)</p>"
-                               "<p>Reinhard (<a href=\"https://github.com/reinhardwh\">reinhardwh</a>)</p>"
-                               "<p>Stefan Menzel (<a href=\"https://github.com/menzels\">menzels</a>)</p>"
-                               "<p>Dau Huy Ngoc (<a href=\"https://github.com/ngocdh\">ngocdh</a>)</p>"
-                               "<p>Jiri Popek (<a href=\"https://github.com/jardous\">jardous</a>)</p>"
-                               "<p>Gary Wang (<a href=\"https://github.com/BLumia\">BLumia</a>)</p>"
-                               "<br>" +
-                               tr ( "For details on the contributions check out the " ) +
-                               "<a href=\"https://github.com/jamulussoftware/jamulus/graphs/contributors\">" + tr ( "Github Contributors list" ) +
-                               "</a>." );
+    txvContributors->setText (
+        "<p>Volker Fischer (<a href=\"https://github.com/corrados\">corrados</a>)</p>"
+        "<p>Peter L. Jones (<a href=\"https://github.com/pljones\">pljones</a>)</p>"
+        "<p>Jonathan Baker-Bates (<a href=\"https://github.com/gilgongo\">gilgongo</a>)</p>"
+        "<p>ann0see (<a href=\"https://github.com/ann0see\">ann0see</a>)</p>"
+        "<p>Daniele Masato (<a href=\"https://github.com/doloopuntil\">doloopuntil</a>)</p>"
+        "<p>Martin Schilde (<a href=\"https://github.com/geheimerEichkater\">geheimerEichkater</a>)</p>"
+        "<p>Simon Tomlinson (<a href=\"https://github.com/sthenos\">sthenos</a>)</p>"
+        "<p>Marc jr. Landolt (<a href=\"https://github.com/braindef\">braindef</a>)</p>"
+        "<p>Olivier Humbert (<a href=\"https://github.com/trebmuh\">trebmuh</a>)</p>"
+        "<p>Tarmo Johannes (<a href=\"https://github.com/tarmoj\">tarmoj</a>)</p>"
+        "<p>mirabilos (<a href=\"https://github.com/mirabilos\">mirabilos</a>)</p>"
+        "<p>Hector Martin (<a href=\"https://github.com/marcan\">marcan</a>)</p>"
+        "<p>newlaurent62 (<a href=\"https://github.com/newlaurent62\">newlaurent62</a>)</p>"
+        "<p>AronVietti (<a href=\"https://github.com/AronVietti\">AronVietti</a>)</p>"
+        "<p>Emlyn Bolton (<a href=\"https://github.com/emlynmac\">emlynmac</a>)</p>"
+        "<p>Jos van den Oever (<a href=\"https://github.com/vandenoever\">vandenoever</a>)</p>"
+        "<p>Tormod Volden (<a href=\"https://github.com/tormodvolden\">tormodvolden</a>)</p>"
+        "<p>Alberstein8 (<a href=\"https://github.com/Alberstein8\">Alberstein8</a>)</p>"
+        "<p>Gauthier Fleutot Östervall (<a href=\"https://github.com/fleutot\">fleutot</a>)</p>"
+        "<p>Tony Mountifield (<a href=\"https://github.com/softins\">softins</a>)</p>"
+        "<p>HPS (<a href=\"https://github.com/hselasky\">hselasky</a>)</p>"
+        "<p>Stanislas Michalak (<a href=\"https://github.com/stanislas-m\">stanislas-m</a>)</p>"
+        "<p>JP Cimalando (<a href=\"https://github.com/jpcima\">jpcima</a>)</p>"
+        "<p>Adam Sampson (<a href=\"https://github.com/atsampson\">atsampson</a>)</p>"
+        "<p>Jakob Jarmar (<a href=\"https://github.com/jarmar\">jarmar</a>)</p>"
+        "<p>Stefan Weil (<a href=\"https://github.com/stweil\">stweil</a>)</p>"
+        "<p>Nils Brederlow (<a href=\"https://github.com/dingodoppelt\">dingodoppelt</a>)</p>"
+        "<p>Sebastian Krzyszkowiak (<a href=\"https://github.com/dos1\">dos1</a>)</p>"
+        "<p>Bryan Flamig (<a href=\"https://github.com/bflamig\">bflamig</a>)</p>"
+        "<p>Kris Raney (<a href=\"https://github.com/kraney\">kraney</a>)</p>"
+        "<p>dszgit (<a href=\"https://github.com/dszgit\">dszgit</a>)</p>"
+        "<p>nefarius2001 (<a href=\"https://github.com/nefarius2001\">nefarius2001</a>)</p>"
+        "<p>jc-Rosichini (<a href=\"https://github.com/jc-Rosichini\">jc-Rosichini</a>)</p>"
+        "<p>Julian Santander (<a href=\"https://github.com/j-santander\">j-santander</a>)</p>"
+        "<p>chigkim (<a href=\"https://github.com/chigkim\">chigkim</a>)</p>"
+        "<p>Bodo (<a href=\"https://github.com/bomm\">bomm</a>)</p>"
+        "<p>Christian Hoffmann (<a href=\"https://github.com/hoffie\">hoffie</a>)</p>"
+        "<p>jp8 (<a href=\"https://github.com/jp8\">jp8</a>)</p>"
+        "<p>James (<a href=\"https://github.com/jdrage\">jdrage</a>)</p>"
+        "<p>ranfdev (<a href=\"https://github.com/ranfdev\">ranfdev</a>)</p>"
+        "<p>bspeer (<a href=\"https://github.com/bspeer\">bspeer</a>)</p>"
+        "<p>Martin Passing (<a href=\"https://github.com/passing\">passing</a>)</p>"
+        "<p>DonC (<a href=\"https://github.com/dcorson-ticino-com\">dcorson-ticino-com</a>)</p>"
+        "<p>David Kastrup (<a href=\"https://github.com/dakhubgit\">dakhubgit</a>)</p>"
+        "<p>Jordan Lum (<a href=\"https://github.com/mulyaj\">mulyaj</a>)</p>"
+        "<p>Noam Postavsky (<a href=\"https://github.com/npostavs\">npostavs</a>)</p>"
+        "<p>David Savinkoff (<a href=\"https://github.com/DavidSavinkoff\">DavidSavinkoff</a>)</p>"
+        "<p>Johannes Brauers (<a href=\"https://github.com/JohannesBrx\">JohannesBrx</a>)</p>"
+        "<p>Henk De Groot (<a href=\"https://github.com/henkdegroot\">henkdegroot</a>)</p>"
+        "<p>Ferenc Wágner (<a href=\"https://github.com/wferi\">wferi</a>)</p>"
+        "<p>Martin Kaistra (<a href=\"https://github.com/djfun\">djfun</a>)</p>"
+        "<p>Burkhard Volkemer (<a href=\"https://github.com/buv\">buv</a>)</p>"
+        "<p>Magnus Groß (<a href=\"https://github.com/vimpostor\">vimpostor</a>)</p>"
+        "<p>Julien Taverna (<a href=\"https://github.com/jujudusud\">jujudusud</a>)</p>"
+        "<p>Detlef Hennings (<a href=\"https://github.com/DetlefHennings\">DetlefHennings</a>)</p>"
+        "<p>drummer1154 (<a href=\"https://github.com/drummer1154\">drummer1154</a>)</p>"
+        "<p>helgeerbe (<a href=\"https://github.com/helgeerbe\">helgeerbe</a>)</p>"
+        "<p>Hk1020 (<a href=\"https://github.com/Hk1020\">Hk1020</a>)</p>"
+        "<p>Jeroen van Veldhuizen (<a href=\"https://github.com/jeroenvv\">jeroenvv</a>)</p>"
+        "<p>Reinhard (<a href=\"https://github.com/reinhardwh\">reinhardwh</a>)</p>"
+        "<p>Stefan Menzel (<a href=\"https://github.com/menzels\">menzels</a>)</p>"
+        "<p>Dau Huy Ngoc (<a href=\"https://github.com/ngocdh\">ngocdh</a>)</p>"
+        "<p>Jiri Popek (<a href=\"https://github.com/jardous\">jardous</a>)</p>"
+        "<p>Gary Wang (<a href=\"https://github.com/BLumia\">BLumia</a>)</p>"
+        "<p>RobyDati (<a href=\"https://github.com/RobyDati\">RobyDati</a>)</p>"
+        "<p>Rob-NY (<a href=\"https://github.com/Rob-NY\">Rob-NY</a>)</p>"
+        "<p>Thai Pangsakulyanont (<a href=\"https://github.com/dtinth\">dtinth</a>)</p>"
+        "<br>" +
+        tr ( "For details on the contributions check out the %1" )
+            .arg ( "<a href=\"https://github.com/jamulussoftware/jamulus/graphs/contributors\">" + tr ( "Github Contributors list" ) + "</a>." ) );
 
     // translators
     txvTranslation->setText ( "<p><b>" + tr ( "Spanish" ) +
@@ -543,7 +548,7 @@ CAboutDlg::CAboutDlg ( QWidget* parent ) : CBaseDlg ( parent )
     lblVersion->setText ( GetVersionAndNameStr() );
 
     // set window title
-    setWindowTitle ( tr ( "About " ) + APP_NAME );
+    setWindowTitle ( tr ( "About %1" ).arg ( APP_NAME ) );
 }
 
 // Licence dialog --------------------------------------------------------------
@@ -666,6 +671,16 @@ void CLanguageComboBox::OnLanguageActivated ( int iLanguageIdx )
         emit LanguageChanged ( itemData ( iLanguageIdx ).toString() );
     }
 }
+
+QSize CMinimumStackedLayout::sizeHint() const
+{
+    // always use the size of the currently visible widget:
+    if ( currentWidget() )
+    {
+        return currentWidget()->sizeHint();
+    }
+    return QStackedLayout::sizeHint();
+}
 #endif
 
 /******************************************************************************\
@@ -691,25 +706,28 @@ bool NetworkUtil::ParseNetworkAddress ( QString strAddress, CHostAddress& HostAd
     // hostname:port
     // (where addr4or6 is a literal IPv4 or IPv6 address, and addr4 is a literal IPv4 address
 
-    bool    bLiteralAddr = false;
-    QRegExp rx1 ( "^\\[([^]]*)\\](?::(\\d+))?$" ); // [addr4or6] or [addr4or6]:port
-    QRegExp rx2 ( "^([^:]*)(?::(\\d+))?$" );       // addr4 or addr4:port or host or host:port
+    bool               bLiteralAddr = false;
+    QRegularExpression rx1 ( "^\\[([^]]*)\\](?::(\\d+))?$" ); // [addr4or6] or [addr4or6]:port
+    QRegularExpression rx2 ( "^([^:]*)(?::(\\d+))?$" );       // addr4 or addr4:port or host or host:port
 
     QString strPort;
 
+    QRegularExpressionMatch rx1match = rx1.match ( strAddress );
+    QRegularExpressionMatch rx2match = rx2.match ( strAddress );
+
     // parse input address with rx1 and rx2 in turn, capturing address/host and port
-    if ( rx1.indexIn ( strAddress ) == 0 )
+    if ( rx1match.capturedStart() == 0 )
     {
         // literal address within []
-        strAddress   = rx1.cap ( 1 );
-        strPort      = rx1.cap ( 2 );
+        strAddress   = rx1match.captured ( 1 );
+        strPort      = rx1match.captured ( 2 );
         bLiteralAddr = true; // don't allow hostname within []
     }
-    else if ( rx2.indexIn ( strAddress ) == 0 )
+    else if ( rx2match.capturedStart() == 0 )
     {
         // hostname or IPv4 address
-        strAddress = rx2.cap ( 1 );
-        strPort    = rx2.cap ( 2 );
+        strAddress = rx2match.captured ( 1 );
+        strPort    = rx2match.captured ( 2 );
     }
     else
     {
@@ -829,12 +847,12 @@ CHostAddress NetworkUtil::GetLocalAddress6()
     }
 }
 
-QString NetworkUtil::GetCentralServerAddress ( const ECSAddType eCentralServerAddressType, const QString& strCentralServerAddress )
+QString NetworkUtil::GetDirectoryAddress ( const EDirectoryType eDirectoryType, const QString& strDirectoryAddress )
 {
-    switch ( eCentralServerAddressType )
+    switch ( eDirectoryType )
     {
     case AT_CUSTOM:
-        return strCentralServerAddress;
+        return strDirectoryAddress;
     case AT_ANY_GENRE2:
         return CENTSERV_ANY_GENRE2;
     case AT_ANY_GENRE3:
@@ -923,6 +941,44 @@ int CHostAddress::Compare ( const CHostAddress& other ) const
     quint32 otherAddr = other.InetAddr.toIPv4Address();
 
     return thisAddr < otherAddr ? -1 : thisAddr > otherAddr ? 1 : 0;
+}
+
+QString CHostAddress::toString ( const EStringMode eStringMode ) const
+{
+    QString strReturn = InetAddr.toString();
+
+    // special case: for local host address, we do not replace the last byte
+    if ( ( ( eStringMode == SM_IP_NO_LAST_BYTE ) || ( eStringMode == SM_IP_NO_LAST_BYTE_PORT ) ) &&
+         ( InetAddr != QHostAddress ( QHostAddress::LocalHost ) ) && ( InetAddr != QHostAddress ( QHostAddress::LocalHostIPv6 ) ) )
+    {
+        // replace last part by an "x"
+        if ( strReturn.contains ( "." ) )
+        {
+            // IPv4 or IPv4-mapped:
+            strReturn = strReturn.section ( ".", 0, -2 ) + ".x";
+        }
+        else
+        {
+            // IPv6
+            strReturn = strReturn.section ( ":", 0, -2 ) + ":x";
+        }
+    }
+
+    if ( ( eStringMode == SM_IP_PORT ) || ( eStringMode == SM_IP_NO_LAST_BYTE_PORT ) )
+    {
+        // add port number after a colon
+        if ( strReturn.contains ( "." ) )
+        {
+            strReturn += ":" + QString().setNum ( iPort );
+        }
+        else
+        {
+            // enclose pure IPv6 address in [ ] before adding port, to avoid ambiguity
+            strReturn = "[" + strReturn + "]:" + QString().setNum ( iPort );
+        }
+    }
+
+    return strReturn;
 }
 
 // Instrument picture data base ------------------------------------------------
@@ -1086,6 +1142,9 @@ CVector<CInstPictures::CInstPictProps>& CInstPictures::GetTable ( const bool bRe
         vecDataBase.Add ( CInstPictProps ( QCoreApplication::translate ( "CClientSettingsDlg", "Vibraphone" ),
                                            ":/png/instr/res/instruments/vibraphone.png",
                                            IC_PERCUSSION_INSTRUMENT ) );
+        vecDataBase.Add ( CInstPictProps ( QCoreApplication::translate ( "CClientSettingsDlg", "Conductor" ),
+                                           ":/png/instr/res/instruments/conductor.png",
+                                           IC_OTHER_INSTRUMENT ) );
 
         // now the table is initialized
         TableIsInitialized = true;
@@ -1143,616 +1202,76 @@ CInstPictures::EInstCategory CInstPictures::GetCategory ( const int iInstrument 
 }
 
 // Locale management class -----------------------------------------------------
-QString CLocale::GetCountryFlagIconsResourceReference ( const QLocale::Country eCountry )
+QLocale::Country CLocale::WireFormatCountryCodeToQtCountry ( unsigned short iCountryCode )
+{
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 0, 0 )
+    // The Jamulus protocol wire format gives us Qt5 country IDs.
+    // Qt6 changed those IDs, so we have to convert back:
+    return (QLocale::Country) wireFormatToQt6Table[iCountryCode];
+#else
+    return (QLocale::Country) iCountryCode;
+#endif
+}
+
+unsigned short CLocale::QtCountryToWireFormatCountryCode ( const QLocale::Country eCountry )
+{
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 0, 0 )
+    // The Jamulus protocol wire format expects Qt5 country IDs.
+    // Qt6 changed those IDs, so we have to convert back:
+    return qt6CountryToWireFormat[(unsigned short) eCountry];
+#else
+    return (unsigned short) eCountry;
+#endif
+}
+
+bool CLocale::IsCountryCodeSupported ( unsigned short iCountryCode )
+{
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 0, 0 )
+    // On newer Qt versions there might be codes which do not have a Qt5 equivalent.
+    // We have no way to support those sanely right now.
+    return qt6CountryToWireFormat[iCountryCode] != -1;
+#else
+    // All Qt5 codes are supported.
+    Q_UNUSED ( iCountryCode );
+    return true;
+#endif
+}
+
+QString CLocale::GetCountryFlagIconsResourceReference ( const QLocale::Country eCountry /* Qt-native value */ )
 {
     QString strReturn = "";
 
     // special flag for none
     if ( eCountry == QLocale::AnyCountry )
     {
-        strReturn = ":/png/flags/res/flags/flagnone.png";
+        return ":/png/flags/res/flags/flagnone.png";
     }
-    else
+
+    // There is no direct query of the country code in Qt, therefore we use a
+    // workaround: Get the matching locales properties and split the name of
+    // that since the second part is the country code
+    QList<QLocale> vCurLocaleList = QLocale::matchingLocales ( QLocale::AnyLanguage, QLocale::AnyScript, eCountry );
+
+    // check if the matching locales query was successful
+    if ( vCurLocaleList.size() < 1 )
     {
-        // NOTE: The following code was introduced to support old QT versions. The problem
-        //       is that the number of countries displayed is less than the one displayed
-        //       with the new code below (which is disabled). Therefore, as soon as the
-        //       compatibility to the very old versions of QT is not required anymore, use
-        //       the new code.
-        // COMPATIBLE FOR OLD QT VERSIONS -> use a table:
-        QString strISO3166 = "";
-        switch ( static_cast<int> ( eCountry ) )
-        {
-        case 1:
-            strISO3166 = "af";
-            break;
-        case 2:
-            strISO3166 = "al";
-            break;
-        case 3:
-            strISO3166 = "dz";
-            break;
-        case 5:
-            strISO3166 = "ad";
-            break;
-        case 6:
-            strISO3166 = "ao";
-            break;
-        case 10:
-            strISO3166 = "ar";
-            break;
-        case 11:
-            strISO3166 = "am";
-            break;
-        case 12:
-            strISO3166 = "aw";
-            break;
-        case 13:
-            strISO3166 = "au";
-            break;
-        case 14:
-            strISO3166 = "at";
-            break;
-        case 15:
-            strISO3166 = "az";
-            break;
-        case 17:
-            strISO3166 = "bh";
-            break;
-        case 18:
-            strISO3166 = "bd";
-            break;
-        case 20:
-            strISO3166 = "by";
-            break;
-        case 21:
-            strISO3166 = "be";
-            break;
-        case 23:
-            strISO3166 = "bj";
-            break;
-        case 25:
-            strISO3166 = "bt";
-            break;
-        case 26:
-            strISO3166 = "bo";
-            break;
-        case 27:
-            strISO3166 = "ba";
-            break;
-        case 28:
-            strISO3166 = "bw";
-            break;
-        case 30:
-            strISO3166 = "br";
-            break;
-        case 32:
-            strISO3166 = "bn";
-            break;
-        case 33:
-            strISO3166 = "bg";
-            break;
-        case 34:
-            strISO3166 = "bf";
-            break;
-        case 35:
-            strISO3166 = "bi";
-            break;
-        case 36:
-            strISO3166 = "kh";
-            break;
-        case 37:
-            strISO3166 = "cm";
-            break;
-        case 38:
-            strISO3166 = "ca";
-            break;
-        case 39:
-            strISO3166 = "cv";
-            break;
-        case 41:
-            strISO3166 = "cf";
-            break;
-        case 42:
-            strISO3166 = "td";
-            break;
-        case 43:
-            strISO3166 = "cl";
-            break;
-        case 44:
-            strISO3166 = "cn";
-            break;
-        case 47:
-            strISO3166 = "co";
-            break;
-        case 48:
-            strISO3166 = "km";
-            break;
-        case 49:
-            strISO3166 = "cd";
-            break;
-        case 50:
-            strISO3166 = "cg";
-            break;
-        case 52:
-            strISO3166 = "cr";
-            break;
-        case 53:
-            strISO3166 = "ci";
-            break;
-        case 54:
-            strISO3166 = "hr";
-            break;
-        case 55:
-            strISO3166 = "cu";
-            break;
-        case 56:
-            strISO3166 = "cy";
-            break;
-        case 57:
-            strISO3166 = "cz";
-            break;
-        case 58:
-            strISO3166 = "dk";
-            break;
-        case 59:
-            strISO3166 = "dj";
-            break;
-        case 61:
-            strISO3166 = "do";
-            break;
-        case 62:
-            strISO3166 = "tl";
-            break;
-        case 63:
-            strISO3166 = "ec";
-            break;
-        case 64:
-            strISO3166 = "eg";
-            break;
-        case 65:
-            strISO3166 = "sv";
-            break;
-        case 66:
-            strISO3166 = "gq";
-            break;
-        case 67:
-            strISO3166 = "er";
-            break;
-        case 68:
-            strISO3166 = "ee";
-            break;
-        case 69:
-            strISO3166 = "et";
-            break;
-        case 71:
-            strISO3166 = "fo";
-            break;
-        case 73:
-            strISO3166 = "fi";
-            break;
-        case 74:
-            strISO3166 = "fr";
-            break;
-        case 76:
-            strISO3166 = "gf";
-            break;
-        case 77:
-            strISO3166 = "pf";
-            break;
-        case 79:
-            strISO3166 = "ga";
-            break;
-        case 81:
-            strISO3166 = "ge";
-            break;
-        case 82:
-            strISO3166 = "de";
-            break;
-        case 83:
-            strISO3166 = "gh";
-            break;
-        case 85:
-            strISO3166 = "gr";
-            break;
-        case 86:
-            strISO3166 = "gl";
-            break;
-        case 88:
-            strISO3166 = "gp";
-            break;
-        case 90:
-            strISO3166 = "gt";
-            break;
-        case 91:
-            strISO3166 = "gn";
-            break;
-        case 92:
-            strISO3166 = "gw";
-            break;
-        case 93:
-            strISO3166 = "gy";
-            break;
-        case 96:
-            strISO3166 = "hn";
-            break;
-        case 97:
-            strISO3166 = "hk";
-            break;
-        case 98:
-            strISO3166 = "hu";
-            break;
-        case 99:
-            strISO3166 = "is";
-            break;
-        case 100:
-            strISO3166 = "in";
-            break;
-        case 101:
-            strISO3166 = "id";
-            break;
-        case 102:
-            strISO3166 = "ir";
-            break;
-        case 103:
-            strISO3166 = "iq";
-            break;
-        case 104:
-            strISO3166 = "ie";
-            break;
-        case 105:
-            strISO3166 = "il";
-            break;
-        case 106:
-            strISO3166 = "it";
-            break;
-        case 108:
-            strISO3166 = "jp";
-            break;
-        case 109:
-            strISO3166 = "jo";
-            break;
-        case 110:
-            strISO3166 = "kz";
-            break;
-        case 111:
-            strISO3166 = "ke";
-            break;
-        case 113:
-            strISO3166 = "kp";
-            break;
-        case 114:
-            strISO3166 = "kr";
-            break;
-        case 115:
-            strISO3166 = "kw";
-            break;
-        case 116:
-            strISO3166 = "kg";
-            break;
-        case 117:
-            strISO3166 = "la";
-            break;
-        case 118:
-            strISO3166 = "lv";
-            break;
-        case 119:
-            strISO3166 = "lb";
-            break;
-        case 120:
-            strISO3166 = "ls";
-            break;
-        case 122:
-            strISO3166 = "ly";
-            break;
-        case 123:
-            strISO3166 = "li";
-            break;
-        case 124:
-            strISO3166 = "lt";
-            break;
-        case 125:
-            strISO3166 = "lu";
-            break;
-        case 126:
-            strISO3166 = "mo";
-            break;
-        case 127:
-            strISO3166 = "mk";
-            break;
-        case 128:
-            strISO3166 = "mg";
-            break;
-        case 130:
-            strISO3166 = "my";
-            break;
-        case 132:
-            strISO3166 = "ml";
-            break;
-        case 133:
-            strISO3166 = "mt";
-            break;
-        case 135:
-            strISO3166 = "mq";
-            break;
-        case 136:
-            strISO3166 = "mr";
-            break;
-        case 137:
-            strISO3166 = "mu";
-            break;
-        case 138:
-            strISO3166 = "yt";
-            break;
-        case 139:
-            strISO3166 = "mx";
-            break;
-        case 141:
-            strISO3166 = "md";
-            break;
-        case 142:
-            strISO3166 = "mc";
-            break;
-        case 143:
-            strISO3166 = "mn";
-            break;
-        case 145:
-            strISO3166 = "ma";
-            break;
-        case 146:
-            strISO3166 = "mz";
-            break;
-        case 147:
-            strISO3166 = "mm";
-            break;
-        case 148:
-            strISO3166 = "na";
-            break;
-        case 150:
-            strISO3166 = "np";
-            break;
-        case 151:
-            strISO3166 = "nl";
-            break;
-        case 153:
-            strISO3166 = "nc";
-            break;
-        case 154:
-            strISO3166 = "nz";
-            break;
-        case 155:
-            strISO3166 = "ni";
-            break;
-        case 156:
-            strISO3166 = "ne";
-            break;
-        case 157:
-            strISO3166 = "ng";
-            break;
-        case 161:
-            strISO3166 = "no";
-            break;
-        case 162:
-            strISO3166 = "om";
-            break;
-        case 163:
-            strISO3166 = "pk";
-            break;
-        case 165:
-            strISO3166 = "ps";
-            break;
-        case 166:
-            strISO3166 = "pa";
-            break;
-        case 167:
-            strISO3166 = "pg";
-            break;
-        case 168:
-            strISO3166 = "py";
-            break;
-        case 169:
-            strISO3166 = "pe";
-            break;
-        case 170:
-            strISO3166 = "ph";
-            break;
-        case 172:
-            strISO3166 = "pl";
-            break;
-        case 173:
-            strISO3166 = "pt";
-            break;
-        case 174:
-            strISO3166 = "pr";
-            break;
-        case 175:
-            strISO3166 = "qa";
-            break;
-        case 176:
-            strISO3166 = "re";
-            break;
-        case 177:
-            strISO3166 = "ro";
-            break;
-        case 178:
-            strISO3166 = "ru";
-            break;
-        case 179:
-            strISO3166 = "rw";
-            break;
-        case 184:
-            strISO3166 = "sm";
-            break;
-        case 185:
-            strISO3166 = "st";
-            break;
-        case 186:
-            strISO3166 = "sa";
-            break;
-        case 187:
-            strISO3166 = "sn";
-            break;
-        case 188:
-            strISO3166 = "sc";
-            break;
-        case 189:
-            strISO3166 = "sl";
-            break;
-        case 190:
-            strISO3166 = "sg";
-            break;
-        case 191:
-            strISO3166 = "sk";
-            break;
-        case 192:
-            strISO3166 = "si";
-            break;
-        case 194:
-            strISO3166 = "so";
-            break;
-        case 195:
-            strISO3166 = "za";
-            break;
-        case 197:
-            strISO3166 = "es";
-            break;
-        case 198:
-            strISO3166 = "lk";
-            break;
-        case 201:
-            strISO3166 = "sd";
-            break;
-        case 202:
-            strISO3166 = "sr";
-            break;
-        case 204:
-            strISO3166 = "sz";
-            break;
-        case 205:
-            strISO3166 = "se";
-            break;
-        case 206:
-            strISO3166 = "ch";
-            break;
-        case 207:
-            strISO3166 = "sy";
-            break;
-        case 208:
-            strISO3166 = "tw";
-            break;
-        case 209:
-            strISO3166 = "tj";
-            break;
-        case 210:
-            strISO3166 = "tz";
-            break;
-        case 211:
-            strISO3166 = "th";
-            break;
-        case 212:
-            strISO3166 = "tg";
-            break;
-        case 214:
-            strISO3166 = "to";
-            break;
-        case 216:
-            strISO3166 = "tn";
-            break;
-        case 217:
-            strISO3166 = "tr";
-            break;
-        case 221:
-            strISO3166 = "ug";
-            break;
-        case 222:
-            strISO3166 = "ua";
-            break;
-        case 223:
-            strISO3166 = "ae";
-            break;
-        case 224:
-            strISO3166 = "gb";
-            break;
-        case 225:
-            strISO3166 = "us";
-            break;
-        case 227:
-            strISO3166 = "uy";
-            break;
-        case 228:
-            strISO3166 = "uz";
-            break;
-        case 231:
-            strISO3166 = "ve";
-            break;
-        case 232:
-            strISO3166 = "vn";
-            break;
-        case 236:
-            strISO3166 = "eh";
-            break;
-        case 237:
-            strISO3166 = "ye";
-            break;
-        case 239:
-            strISO3166 = "zm";
-            break;
-        case 240:
-            strISO3166 = "zw";
-            break;
-        case 242:
-            strISO3166 = "me";
-            break;
-        case 243:
-            strISO3166 = "rs";
-            break;
-        case 248:
-            strISO3166 = "ax";
-            break;
-        }
-        strReturn = ":/png/flags/res/flags/" + strISO3166 + ".png";
+        return "";
+    }
 
-        // check if file actually exists, if not then invalidate reference
-        if ( !QFile::exists ( strReturn ) )
-        {
-            strReturn = "";
-        }
+    QStringList vstrLocParts = vCurLocaleList.at ( 0 ).name().split ( "_" );
 
-        // AT LEAST QT 4.8 IS REQUIRED:
-        /*
-                // There is no direct query of the country code in Qt, therefore we use a
-                // workaround: Get the matching locales properties and split the name of
-                // that since the second part is the country code
-                QList<QLocale> vCurLocaleList = QLocale::matchingLocales ( QLocale::AnyLanguage,
-                                                                           QLocale::AnyScript,
-                                                                           eCountry );
+    // the second split contains the name we need
+    if ( vstrLocParts.size() <= 1 )
+    {
+        return "";
+    }
 
-                // check if the matching locales query was successful
-                if ( vCurLocaleList.size() > 0 )
-                {
-                    QStringList vstrLocParts = vCurLocaleList.at ( 0 ).name().split("_");
+    strReturn = ":/png/flags/res/flags/" + vstrLocParts.at ( 1 ).toLower() + ".png";
 
-                    // the second split contains the name we need
-                    if ( vstrLocParts.size() > 1 )
-                    {
-                        strReturn = ":/png/flags/res/flags/" + vstrLocParts.at ( 1 ).toLower() + ".png";
-
-                        // check if file actually exists, if not then invalidate reference
-                        if ( !QFile::exists ( strReturn ) )
-                        {
-                            strReturn = "";
-                        }
-        //else
-        //{
-        //// TEST generate table
-        //static FILE* pFile = fopen ( "test.dat", "w" );
-        //fprintf ( pFile, "            case %d: strISO3166 = \"%s\"; break;\n",
-        //          static_cast<int> ( eCountry ), vstrLocParts.at ( 1 ).toLower().toStdString().c_str() );
-        //fflush ( pFile );
-        //}
-                    }
-                }
-        */
+    // check if file actually exists, if not then invalidate reference
+    if ( !QFile::exists ( strReturn ) )
+    {
+        return "";
     }
 
     return strReturn;
@@ -1836,23 +1355,27 @@ void CLocale::LoadTranslation ( const QString strLanguage, QCoreApplication* pAp
 /******************************************************************************\
 * Global Functions Implementation                                              *
 \******************************************************************************/
-QString GetVersionAndNameStr ( const bool bWithHtml )
+QString GetVersionAndNameStr ( const bool bDisplayInGui )
 {
     QString strVersionText = "";
 
     // name, short description and GPL hint
-    if ( bWithHtml )
+    if ( bDisplayInGui )
     {
         strVersionText += "<b>";
     }
     else
     {
+#ifdef _WIN32
+        // start with newline to print nice in windows command prompt
+        strVersionText += "\n";
+#endif
         strVersionText += " *** ";
     }
 
     strVersionText += APP_NAME + QCoreApplication::tr ( ", Version " ) + VERSION;
 
-    if ( bWithHtml )
+    if ( bDisplayInGui )
     {
         strVersionText += "</b><br>";
     }
@@ -1861,13 +1384,51 @@ QString GetVersionAndNameStr ( const bool bWithHtml )
         strVersionText += "\n *** ";
     }
 
-    if ( !bWithHtml )
+    if ( !bDisplayInGui )
     {
         strVersionText += QCoreApplication::tr ( "Internet Jam Session Software" );
         strVersionText += "\n *** ";
     }
 
-    strVersionText += QCoreApplication::tr ( "Released under the GNU General Public License (GPL)" );
+    strVersionText += QCoreApplication::tr ( "Released under the GNU General Public License version 2 or later (GPLv2)" );
+
+    if ( !bDisplayInGui )
+    {
+        // additional text to show in console output
+        strVersionText += "\n *** ";
+        strVersionText += "<https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>";
+        strVersionText += "\n *** ";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "This program is free software; you can redistribute it and/or modify it under" );
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "the terms of the GNU General Public License as published by the Free Software" );
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Foundation; either version 2 of the License, or (at your option) any later version." );
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "There is NO WARRANTY, to the extent permitted by law." );
+        strVersionText += "\n *** ";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Using the following libraries, resources or code snippets:" );
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Qt framework " ) + QT_VERSION_STR;
+        strVersionText += " <https://doc.qt.io/qt-5/lgpl.html>";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Opus Interactive Audio Codec" );
+        strVersionText += " <https://www.opus-codec.org>";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Audio reverberation code by Perry R. Cook and Gary P. Scavone" );
+        strVersionText += " <https://ccrma.stanford.edu/software/stk>";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Some pixmaps are from the Open Clip Art Library (OCAL)" );
+        strVersionText += " <https://openclipart.org>";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Flag icons by Mark James" );
+        strVersionText += " <http://www.famfamfam.com>";
+        strVersionText += "\n *** ";
+        strVersionText += "\n *** ";
+        strVersionText += QCoreApplication::tr ( "Copyright (C) 2005-2022 The Jamulus Development Team" );
+        strVersionText += "\n";
+    }
 
     return strVersionText;
 }
@@ -1880,4 +1441,17 @@ QString MakeClientNameTitle ( QString win, QString client )
         sReturnString += " - " + client;
     }
     return ( sReturnString );
+}
+
+QString TruncateString ( QString str, int position )
+{
+    QTextBoundaryFinder tbfString ( QTextBoundaryFinder::Grapheme, str );
+
+    tbfString.setPosition ( position );
+    if ( !tbfString.isAtBoundary() )
+    {
+        tbfString.toPreviousBoundary();
+        position = tbfString.position();
+    }
+    return str.left ( position );
 }

@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2021
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -29,7 +29,6 @@
 #include <QDateTime>
 #include <QHostAddress>
 #include <QFileInfo>
-#include <QtConcurrent>
 #include <algorithm>
 #ifdef USE_OPUS_SHARED_LIB
 #    include "opus/opus_custom.h"
@@ -158,7 +157,7 @@ public:
               const quint16      iPortNumber,
               const quint16      iQosNumber,
               const QString&     strHTMLStatusFileName,
-              const QString&     strCentralServer,
+              const QString&     strDirectoryServer,
               const QString&     strServerListFileName,
               const QString&     strServerInfo,
               const QString&     strServerListFilter,
@@ -190,70 +189,50 @@ public:
 
     void CreateCLServerListReqVerAndOSMes ( const CHostAddress& InetAddr ) { ConnLessProtocol.CreateCLReqVersionAndOSMes ( InetAddr ); }
 
-    // Jam recorder ------------------------------------------------------------
-    bool    GetRecorderInitialised() { return JamController.GetRecorderInitialised(); }
-    QString GetRecorderErrMsg() { return JamController.GetRecorderErrMsg(); }
-    bool    GetRecordingEnabled() { return JamController.GetRecordingEnabled(); }
-    bool    GetDisableRecording() { return bDisableRecording; }
-    void    RequestNewRecording() { JamController.RequestNewRecording(); }
-
-    void SetEnableRecording ( bool bNewEnableRecording );
-
-    QString GetRecordingDir() { return JamController.GetRecordingDir(); }
-
-    void SetRecordingDir ( QString newRecordingDir )
-    {
-        JamController.SetRecordingDir ( newRecordingDir, iServerFrameSizeSamples, bDisableRecording );
-    }
-
-    void CreateAndSendRecorderStateForAllConChannels();
-
-    // delay panning
-    void SetEnableDelayPanning ( bool bDelayPanningOn ) { bDelayPan = bDelayPanningOn; }
-    bool IsDelayPanningEnabled() { return bDelayPan; }
-
     // IPv6 Enabled
     bool IsIPv6Enabled() { return bEnableIPv6; }
 
-    // Server list management --------------------------------------------------
-    void UpdateServerList() { ServerListManager.Update(); }
+    // GUI settings ------------------------------------------------------------
+    int GetClientNumAudioChannels ( const int iChanNum ) { return vecChannels[iChanNum].GetNumAudioChannels(); }
 
-    void UnregisterSlaveServer() { ServerListManager.SlaveServerUnregister(); }
+    void           SetDirectoryType ( const EDirectoryType eNCSAT ) { ServerListManager.SetDirectoryType ( eNCSAT ); }
+    EDirectoryType GetDirectoryType() { return ServerListManager.GetDirectoryType(); }
+    bool           IsDirectoryServer() { return ServerListManager.IsDirectoryServer(); }
+    ESvrRegStatus  GetSvrRegStatus() { return ServerListManager.GetSvrRegStatus(); }
 
-    void SetServerListEnabled ( const bool bState ) { ServerListManager.SetEnabled ( bState ); }
-
-    bool GetServerListEnabled() { return ServerListManager.GetEnabled(); }
-
-    void SetServerListCentralServerAddress ( const QString& sNCentServAddr ) { ServerListManager.SetCentralServerAddress ( sNCentServAddr ); }
-
-    QString GetServerListCentralServerAddress() { return ServerListManager.GetCentralServerAddress(); }
-
-    void SetCentralServerAddressType ( const ECSAddType eNCSAT ) { ServerListManager.SetCentralServerAddressType ( eNCSAT ); }
-
-    ECSAddType GetCentralServerAddressType() { return ServerListManager.GetCentralServerAddressType(); }
-
-    void SetServerName ( const QString& strNewName ) { ServerListManager.SetServerName ( strNewName ); }
-
-    QString GetServerName() { return ServerListManager.GetServerName(); }
-
-    void SetServerCity ( const QString& strNewCity ) { ServerListManager.SetServerCity ( strNewCity ); }
-
-    QString GetServerCity() { return ServerListManager.GetServerCity(); }
-
-    void SetServerCountry ( const QLocale::Country eNewCountry ) { ServerListManager.SetServerCountry ( eNewCountry ); }
-
+    void             SetServerName ( const QString& strNewName ) { ServerListManager.SetServerName ( strNewName ); }
+    QString          GetServerName() { return ServerListManager.GetServerName(); }
+    void             SetServerCity ( const QString& strNewCity ) { ServerListManager.SetServerCity ( strNewCity ); }
+    QString          GetServerCity() { return ServerListManager.GetServerCity(); }
+    void             SetServerCountry ( const QLocale::Country eNewCountry ) { ServerListManager.SetServerCountry ( eNewCountry ); }
     QLocale::Country GetServerCountry() { return ServerListManager.GetServerCountry(); }
+
+    bool    GetRecorderInitialised() { return JamController.GetRecorderInitialised(); }
+    void    SetEnableRecording ( bool bNewEnableRecording );
+    bool    GetDisableRecording() { return bDisableRecording; }
+    QString GetRecorderErrMsg() { return JamController.GetRecorderErrMsg(); }
+    bool    GetRecordingEnabled() { return JamController.GetRecordingEnabled(); }
+    void    RequestNewRecording() { JamController.RequestNewRecording(); }
+    void    SetRecordingDir ( QString newRecordingDir )
+    {
+        JamController.SetRecordingDir ( newRecordingDir, iServerFrameSizeSamples, bDisableRecording );
+    }
+    QString GetRecordingDir() { return JamController.GetRecordingDir(); }
 
     void    SetWelcomeMessage ( const QString& strNWelcMess );
     QString GetWelcomeMessage() { return strWelcomeMessage; }
 
-    ESvrRegStatus GetSvrRegStatus() { return ServerListManager.GetSvrRegStatus(); }
+    void    SetDirectoryAddress ( const QString& sNDirectoryAddress ) { ServerListManager.SetDirectoryAddress ( sNDirectoryAddress ); }
+    QString GetDirectoryAddress() { return ServerListManager.GetDirectoryAddress(); }
 
-    // GUI settings ------------------------------------------------------------
+    QString GetServerListFileName() { return ServerListManager.GetServerListFileName(); }
+    bool    SetServerListFileName ( QString strFilename ) { return ServerListManager.SetServerListFileName ( strFilename ); }
+
     void SetAutoRunMinimized ( const bool NAuRuMin ) { bAutoRunMinimized = NAuRuMin; }
     bool GetAutoRunMinimized() { return bAutoRunMinimized; }
 
-    int GetClientNumAudioChannels ( const int iChanNum ) { return vecChannels[iChanNum].GetNumAudioChannels(); }
+    void SetEnableDelayPanning ( bool bDelayPanningOn ) { bDelayPan = bDelayPanningOn; }
+    bool IsDelayPanningEnabled() { return bDelayPan; }
 
 protected:
     // access functions for actual channels
@@ -291,6 +270,8 @@ protected:
     void MixEncodeTransmitData ( const int iChanCnt, const int iNumClients );
 
     virtual void customEvent ( QEvent* pEvent );
+
+    void CreateAndSendRecorderStateForAllConChannels();
 
     // if server mode is normal or double system frame size
     bool bUseDoubleSystemFrameSize;
@@ -420,9 +401,9 @@ public slots:
 
     void OnSendCLProtMessage ( CHostAddress InetAddr, CVector<uint8_t> vecMessage );
 
-    void OnProtcolCLMessageReceived ( int iRecID, CVector<uint8_t> vecbyMesBodyData, CHostAddress RecHostAddr );
+    void OnProtocolCLMessageReceived ( int iRecID, CVector<uint8_t> vecbyMesBodyData, CHostAddress RecHostAddr );
 
-    void OnProtcolMessageReceived ( int iRecCounter, int iRecID, CVector<uint8_t> vecbyMesBodyData, CHostAddress RecHostAddr );
+    void OnProtocolMessageReceived ( int iRecCounter, int iRecID, CVector<uint8_t> vecbyMesBodyData, CHostAddress RecHostAddr );
 
     void OnCLPingReceived ( CHostAddress InetAddr, int iMs ) { ConnLessProtocol.CreateCLPingMes ( InetAddr, iMs ); }
 
@@ -433,15 +414,14 @@ public slots:
 
     void OnCLSendEmptyMes ( CHostAddress TargetInetAddr )
     {
-        // only send empty message if server list is enabled and this is not
-        // a directory server
-        if ( ServerListManager.GetEnabled() && !ServerListManager.GetIsCentralServer() )
+        // only send empty message if not a directory server
+        if ( !ServerListManager.IsDirectoryServer() )
         {
             ConnLessProtocol.CreateCLEmptyMes ( TargetInetAddr );
         }
     }
 
-    void OnCLReqServerList ( CHostAddress InetAddr ) { ServerListManager.CentralServerQueryServerList ( InetAddr ); }
+    void OnCLReqServerList ( CHostAddress InetAddr ) { ServerListManager.RetrieveAll ( InetAddr ); }
 
     void OnCLReqVersionAndOS ( CHostAddress InetAddr ) { ConnLessProtocol.CreateCLVersionAndOSMes ( InetAddr ); }
 
@@ -449,7 +429,7 @@ public slots:
 
     void OnCLRegisterServerReceived ( CHostAddress InetAddr, CHostAddress LInetAddr, CServerCoreInfo ServerInfo )
     {
-        ServerListManager.CentralServerRegisterServer ( InetAddr, LInetAddr, ServerInfo );
+        ServerListManager.Append ( InetAddr, LInetAddr, ServerInfo );
     }
 
     void OnCLRegisterServerExReceived ( CHostAddress    InetAddr,
@@ -458,12 +438,12 @@ public slots:
                                         COSUtil::EOpSystemType,
                                         QString strVersion )
     {
-        ServerListManager.CentralServerRegisterServer ( InetAddr, LInetAddr, ServerInfo, strVersion );
+        ServerListManager.Append ( InetAddr, LInetAddr, ServerInfo, strVersion );
     }
 
     void OnCLRegisterServerResp ( CHostAddress /* unused */, ESvrRegResult eResult ) { ServerListManager.StoreRegistrationResult ( eResult ); }
 
-    void OnCLUnregisterServerReceived ( CHostAddress InetAddr ) { ServerListManager.CentralServerUnregisterServer ( InetAddr ); }
+    void OnCLUnregisterServerReceived ( CHostAddress InetAddr ) { ServerListManager.Remove ( InetAddr ); }
 
     void OnCLDisconnection ( CHostAddress InetAddr );
 

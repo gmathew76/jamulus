@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -28,13 +28,13 @@
 #include "levelmeter.h"
 
 /* Implementation *************************************************************/
-CLevelMeter::CLevelMeter ( QWidget* parent ) : QWidget ( parent ), eLevelMeterType ( MT_BAR )
+CLevelMeter::CLevelMeter ( QWidget* parent ) : QWidget ( parent ), eLevelMeterType ( MT_BAR_WIDE )
 {
     // initialize LED meter
     QWidget*     pLEDMeter  = new QWidget();
     QVBoxLayout* pLEDLayout = new QVBoxLayout ( pLEDMeter );
     pLEDLayout->setAlignment ( Qt::AlignHCenter );
-    pLEDLayout->setMargin ( 0 );
+    pLEDLayout->setContentsMargins ( 0, 0, 0, 0 );
     pLEDLayout->setSpacing ( 0 );
 
     // create LEDs plus the clip LED
@@ -61,9 +61,9 @@ CLevelMeter::CLevelMeter ( QWidget* parent ) : QWidget ( parent ), eLevelMeterTy
     pBarMeter->setFormat ( "" );                        // suppress percent numbers
 
     // setup stacked layout for meter type switching mechanism
-    pStackedLayout = new QStackedLayout ( this );
-    pStackedLayout->addWidget ( pLEDMeter );
-    pStackedLayout->addWidget ( pBarMeter );
+    pMinStackedLayout = new CMinimumStackedLayout ( this );
+    pMinStackedLayout->addWidget ( pLEDMeter );
+    pMinStackedLayout->addWidget ( pBarMeter );
 
     // according to QScrollArea description: "When using a scroll area to display the
     // contents of a custom widget, it is important to ensure that the size hint of
@@ -97,27 +97,36 @@ void CLevelMeter::SetLevelMeterType ( const ELevelMeterType eNType )
 
     switch ( eNType )
     {
-    case MT_LED:
+    case MT_LED_STRIPE:
         // initialize all LEDs
         for ( int iLEDIdx = 0; iLEDIdx < NUM_LEDS_INCL_CLIP_LED; iLEDIdx++ )
         {
             vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_BLACK );
         }
-        pStackedLayout->setCurrentIndex ( 0 );
+        pMinStackedLayout->setCurrentIndex ( 0 );
         break;
 
-    case MT_BAR:
-        pStackedLayout->setCurrentIndex ( 1 );
-        break;
-
-    case MT_SLIM_BAR:
-        // set all LEDs to disabled, otherwise we would not get our desired small width
+    case MT_LED_ROUND_BIG:
+        // initialize all LEDs
         for ( int iLEDIdx = 0; iLEDIdx < NUM_LEDS_INCL_CLIP_LED; iLEDIdx++ )
         {
-            vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_DISABLED );
+            vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_BIG_BLACK );
         }
+        pMinStackedLayout->setCurrentIndex ( 0 );
+        break;
 
-        pStackedLayout->setCurrentIndex ( 1 );
+    case MT_LED_ROUND_SMALL:
+        // initialize all LEDs
+        for ( int iLEDIdx = 0; iLEDIdx < NUM_LEDS_INCL_CLIP_LED; iLEDIdx++ )
+        {
+            vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_SMALL_BLACK );
+        }
+        pMinStackedLayout->setCurrentIndex ( 0 );
+        break;
+
+    case MT_BAR_WIDE:
+    case MT_BAR_NARROW:
+        pMinStackedLayout->setCurrentIndex ( 1 );
         break;
     }
 
@@ -129,7 +138,7 @@ void CLevelMeter::SetBarMeterStyleAndClipStatus ( const ELevelMeterType eNType, 
 {
     switch ( eNType )
     {
-    case MT_SLIM_BAR:
+    case MT_BAR_NARROW:
         if ( bIsClip )
         {
             pBarMeter->setStyleSheet ( "QProgressBar        { border:     0px solid red;"
@@ -149,7 +158,7 @@ void CLevelMeter::SetBarMeterStyleAndClipStatus ( const ELevelMeterType eNType, 
         }
         break;
 
-    default: /* MT_BAR */
+    default: /* MT_BAR_WIDE */
         if ( bIsClip )
         {
             pBarMeter->setStyleSheet ( "QProgressBar        { border:     2px solid red;"
@@ -174,7 +183,7 @@ void CLevelMeter::SetValue ( const double dValue )
 {
     switch ( eLevelMeterType )
     {
-    case MT_LED:
+    case MT_LED_STRIPE:
         // update state of all LEDs for current level value (except of the clip LED)
         for ( int iLEDIdx = 0; iLEDIdx < NUM_STEPS_LED_BAR; iLEDIdx++ )
         {
@@ -209,8 +218,78 @@ void CLevelMeter::SetValue ( const double dValue )
         }
         break;
 
-    case MT_BAR:
-    case MT_SLIM_BAR:
+    case MT_LED_ROUND_BIG:
+        // update state of all LEDs for current level value (except of the clip LED)
+        for ( int iLEDIdx = 0; iLEDIdx < NUM_STEPS_LED_BAR; iLEDIdx++ )
+        {
+            // set active LED color if value is above current LED index
+            if ( iLEDIdx < dValue )
+            {
+                // check which color we should use (green, yellow or red)
+                if ( iLEDIdx < YELLOW_BOUND_LED_BAR )
+                {
+                    // green region
+                    vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_BIG_GREEN );
+                }
+                else
+                {
+                    if ( iLEDIdx < RED_BOUND_LED_BAR )
+                    {
+                        // yellow region
+                        vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_BIG_YELLOW );
+                    }
+                    else
+                    {
+                        // red region
+                        vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_BIG_RED );
+                    }
+                }
+            }
+            else
+            {
+                // we use black LED for inactive state
+                vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_BIG_BLACK );
+            }
+        }
+        break;
+
+    case MT_LED_ROUND_SMALL:
+        // update state of all LEDs for current level value (except of the clip LED)
+        for ( int iLEDIdx = 0; iLEDIdx < NUM_STEPS_LED_BAR; iLEDIdx++ )
+        {
+            // set active LED color if value is above current LED index
+            if ( iLEDIdx < dValue )
+            {
+                // check which color we should use (green, yellow or red)
+                if ( iLEDIdx < YELLOW_BOUND_LED_BAR )
+                {
+                    // green region
+                    vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_SMALL_GREEN );
+                }
+                else
+                {
+                    if ( iLEDIdx < RED_BOUND_LED_BAR )
+                    {
+                        // yellow region
+                        vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_SMALL_YELLOW );
+                    }
+                    else
+                    {
+                        // red region
+                        vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_SMALL_RED );
+                    }
+                }
+            }
+            else
+            {
+                // we use black LED for inactive state
+                vecpLEDs[iLEDIdx]->SetColor ( cLED::RL_ROUND_SMALL_BLACK );
+            }
+        }
+        break;
+
+    case MT_BAR_WIDE:
+    case MT_BAR_NARROW:
         pBarMeter->setValue ( 100 * dValue );
         break;
     }
@@ -224,12 +303,20 @@ void CLevelMeter::SetValue ( const double dValue )
     {
         switch ( eLevelMeterType )
         {
-        case MT_LED:
+        case MT_LED_STRIPE:
             vecpLEDs[NUM_STEPS_LED_BAR]->SetColor ( cLED::RL_RED );
             break;
 
-        case MT_BAR:
-        case MT_SLIM_BAR:
+        case MT_LED_ROUND_BIG:
+            vecpLEDs[NUM_STEPS_LED_BAR]->SetColor ( cLED::RL_ROUND_BIG_RED );
+            break;
+
+        case MT_LED_ROUND_SMALL:
+            vecpLEDs[NUM_STEPS_LED_BAR]->SetColor ( cLED::RL_ROUND_SMALL_RED );
+            break;
+
+        case MT_BAR_WIDE:
+        case MT_BAR_NARROW:
             SetBarMeterStyleAndClipStatus ( eLevelMeterType, true );
             break;
         }
@@ -246,28 +333,44 @@ void CLevelMeter::ClipReset()
 
     switch ( eLevelMeterType )
     {
-    case MT_LED:
+    case MT_LED_STRIPE:
         vecpLEDs[NUM_STEPS_LED_BAR]->SetColor ( cLED::RL_BLACK );
         break;
 
-    case MT_BAR:
-    case MT_SLIM_BAR:
+    case MT_LED_ROUND_BIG:
+        vecpLEDs[NUM_STEPS_LED_BAR]->SetColor ( cLED::RL_ROUND_BIG_BLACK );
+        break;
+
+    case MT_LED_ROUND_SMALL:
+        vecpLEDs[NUM_STEPS_LED_BAR]->SetColor ( cLED::RL_ROUND_SMALL_BLACK );
+        break;
+
+    case MT_BAR_WIDE:
+    case MT_BAR_NARROW:
         SetBarMeterStyleAndClipStatus ( eLevelMeterType, false );
         break;
     }
 }
 
 CLevelMeter::cLED::cLED ( QWidget* parent ) :
-    BitmCubeRoundBlack ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDBlackSmall.png" ) ),
-    BitmCubeRoundGreen ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDGreenSmall.png" ) ),
-    BitmCubeRoundYellow ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDYellowSmall.png" ) ),
-    BitmCubeRoundRed ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDRedSmall.png" ) )
+    BitmCubeLedBlack ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDBlackSmall.png" ) ),
+    BitmCubeLedGreen ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDGreenSmall.png" ) ),
+    BitmCubeLedYellow ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDYellowSmall.png" ) ),
+    BitmCubeLedRed ( QString::fromUtf8 ( ":/png/LEDs/res/HLEDRedSmall.png" ) ),
+    BitmCubeRoundSmallLedBlack ( QString::fromUtf8 ( ":/png/LEDs/res/LEDBlackSmall.png" ) ),
+    BitmCubeRoundSmallLedGreen ( QString::fromUtf8 ( ":/png/LEDs/res/LEDGreenSmall.png" ) ),
+    BitmCubeRoundSmallLedYellow ( QString::fromUtf8 ( ":/png/LEDs/res/LEDYellowSmall.png" ) ),
+    BitmCubeRoundSmallLedRed ( QString::fromUtf8 ( ":/png/LEDs/res/LEDRedSmall.png" ) ),
+    BitmCubeRoundBigLedBlack ( QString::fromUtf8 ( ":/png/LEDs/res/CLEDBlackSmall.png" ) ),
+    BitmCubeRoundBigLedGreen ( QString::fromUtf8 ( ":/png/LEDs/res/CLEDGreenSmall.png" ) ),
+    BitmCubeRoundBigLedYellow ( QString::fromUtf8 ( ":/png/LEDs/res/CLEDYellowSmall.png" ) ),
+    BitmCubeRoundBigLedRed ( QString::fromUtf8 ( ":/png/LEDs/res/CLEDRedSmall.png" ) )
 {
     // create LED label
     pLEDLabel = new QLabel ( "", parent );
 
     // set initial bitmap
-    pLEDLabel->setPixmap ( BitmCubeRoundBlack );
+    pLEDLabel->setPixmap ( BitmCubeLedBlack );
     eCurLightColor = RL_BLACK;
 }
 
@@ -284,19 +387,51 @@ void CLevelMeter::cLED::SetColor ( const ELightColor eNewColor )
             break;
 
         case RL_BLACK:
-            pLEDLabel->setPixmap ( BitmCubeRoundBlack );
+            pLEDLabel->setPixmap ( BitmCubeLedBlack );
             break;
 
         case RL_GREEN:
-            pLEDLabel->setPixmap ( BitmCubeRoundGreen );
+            pLEDLabel->setPixmap ( BitmCubeLedGreen );
             break;
 
         case RL_YELLOW:
-            pLEDLabel->setPixmap ( BitmCubeRoundYellow );
+            pLEDLabel->setPixmap ( BitmCubeLedYellow );
             break;
 
         case RL_RED:
-            pLEDLabel->setPixmap ( BitmCubeRoundRed );
+            pLEDLabel->setPixmap ( BitmCubeLedRed );
+            break;
+
+        case RL_ROUND_SMALL_BLACK:
+            pLEDLabel->setPixmap ( BitmCubeRoundSmallLedBlack );
+            break;
+
+        case RL_ROUND_SMALL_GREEN:
+            pLEDLabel->setPixmap ( BitmCubeRoundSmallLedGreen );
+            break;
+
+        case RL_ROUND_SMALL_YELLOW:
+            pLEDLabel->setPixmap ( BitmCubeRoundSmallLedYellow );
+            break;
+
+        case RL_ROUND_SMALL_RED:
+            pLEDLabel->setPixmap ( BitmCubeRoundSmallLedRed );
+            break;
+
+        case RL_ROUND_BIG_BLACK:
+            pLEDLabel->setPixmap ( BitmCubeRoundBigLedBlack );
+            break;
+
+        case RL_ROUND_BIG_GREEN:
+            pLEDLabel->setPixmap ( BitmCubeRoundBigLedGreen );
+            break;
+
+        case RL_ROUND_BIG_YELLOW:
+            pLEDLabel->setPixmap ( BitmCubeRoundBigLedYellow );
+            break;
+
+        case RL_ROUND_BIG_RED:
+            pLEDLabel->setPixmap ( BitmCubeRoundBigLedRed );
             break;
         }
         eCurLightColor = eNewColor;

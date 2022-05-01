@@ -1,5 +1,5 @@
 /******************************************************************************\
- * Copyright (c) 2004-2020
+ * Copyright (c) 2004-2022
  *
  * Author(s):
  *  Volker Fischer
@@ -32,7 +32,9 @@
 #    include <QMessageBox>
 #endif
 #include "global.h"
-#include "client.h"
+#ifndef SERVER_ONLY
+#    include "client.h"
+#endif
 #include "server.h"
 #include "util.h"
 
@@ -106,6 +108,7 @@ public slots:
     void OnAboutToQuit() { Save(); }
 };
 
+#ifndef SERVER_ONLY
 class CClientSettings : public CSettings
 {
 public:
@@ -124,8 +127,8 @@ public:
         bConnectDlgShowAllMusicians ( true ),
         eChannelSortType ( ST_NO_SORT ),
         iNumMixerPanelRows ( 1 ),
-        vstrCentralServerAddress ( MAX_NUM_SERVER_ADDR_ITEMS, "" ),
-        eCentralServerAddressType ( AT_DEFAULT ),
+        vstrDirectoryAddress ( MAX_NUM_SERVER_ADDR_ITEMS, "" ),
+        eDirectoryType ( AT_DEFAULT ),
         bEnableFeedbackDetection ( true ),
         vecWindowPosSettings(), // empty array
         vecWindowPosChat(),     // empty array
@@ -133,6 +136,7 @@ public:
         bWindowWasShownSettings ( false ),
         bWindowWasShownChat ( false ),
         bWindowWasShownConnect ( false ),
+        bOwnFaderFirst ( false ),
         pClient ( pNCliP )
     {
         SetFileName ( sNFiName, DEFAULT_INI_FILE_NAME );
@@ -155,9 +159,9 @@ public:
     bool             bConnectDlgShowAllMusicians;
     EChSortType      eChannelSortType;
     int              iNumMixerPanelRows;
-    CVector<QString> vstrCentralServerAddress;
-    ECSAddType       eCentralServerAddressType;
-    int              iCustomDirectoryIndex; // index of selected custom central server
+    CVector<QString> vstrDirectoryAddress;
+    EDirectoryType   eDirectoryType;
+    int              iCustomDirectoryIndex; // index of selected custom directory server
     bool             bEnableFeedbackDetection;
 
     // window position/state settings
@@ -167,6 +171,7 @@ public:
     bool       bWindowWasShownSettings;
     bool       bWindowWasShownChat;
     bool       bWindowWasShownConnect;
+    bool       bOwnFaderFirst;
 
 protected:
     // No CommandLineOptions used when reading Client inifile
@@ -178,6 +183,7 @@ protected:
 
     CClient* pClient;
 };
+#endif
 
 class CServerSettings : public CSettings
 {
